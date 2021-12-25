@@ -3,12 +3,14 @@ package bgu.spl.net.impl.BGSServer;
 import bgu.spl.net.srv.Server;
 
 import bgu.spl.net.impl.BGSServer.Messages.BGSMessage;
+import bgu.spl.net.api.bidi.Connections;
 import bgu.spl.net.impl.BGSServer.BGSEncoderDecoder;
 import bgu.spl.net.impl.BGSServer.BGSProtocol;
 
 public class TPCMain {
 
     public static void main(String[] args) {
+        Connections<BGSMessage> connections; // TODO
 
         if (args.length != 1) {
             System.out.println("Bad parameters passes. Usage <port> <Num of threads>");

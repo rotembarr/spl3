@@ -14,12 +14,15 @@ public class ReactorMain {
             System.out.println("Bad parameters passes. Usage <port> <Num of threads>");
         }
 
-        Server.<BGSMessage>reactor(
-            Integer.parseInt(args[1]), // nThreads
-            Integer.parseInt(args[0]), //port
-            () -> new BGSProtocol(), //protocol factory
-            () -> new BGSEncoderDecoder() //message encoder decoder factory
-        ).serve();
+
+        
+        // TODO - refactor this
+        // Server.<BGSMessage>reactor(
+        //     Integer.parseInt(args[1]), // nThreads
+        //     Integer.parseInt(args[0]), //port
+        //     () -> new BGSProtocol(), //protocol factory
+        //     () -> new BGSEncoderDecoder() //message encoder decoder factory
+        // ).serve();
 
     }
 }
