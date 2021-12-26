@@ -1,9 +1,25 @@
 package bgu.spl.net.impl.BGSServer.Messages;
 
 
+import static org.junit.Assert.assertEquals;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.IOError;
+import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import bgu.spl.net.impl.BGSServer.BGSEncoderDecoder;
 
 public class MessagesTest {
     
@@ -16,8 +32,93 @@ public class MessagesTest {
             System.out.println(part);
         }
 
+        
         // String s = Short.((short)9);
         // System.out.println(s.length());
         // System.out.println(s);
+    }
+    @Test
+    public void TestSocket() {
+        Thread serverThread = new Thread() {
+            @Override
+            public void run() {
+                try (ServerSocket socket = new ServerSocket(7777)) {
+                    Socket client = socket.accept();
+                    BufferedInputStream in = new BufferedInputStream(client.getInputStream());
+                    System.out.println("server got: " + in.read());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                System.out.println("server finish");
+            }
+        };
+        serverThread.start();
+
+        try {
+            Thread.currentThread().sleep(10);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        try {
+            Socket socket = new Socket("10.0.2.15", 7777);
+            Thread readThread = new Thread() {
+                @Override
+                public void run() {
+                    try {
+                        BufferedInputStream in = new BufferedInputStream(socket.getInputStream());
+                        System.out.println(in.read());
+                    } catch (IOException e) {
+                        System.out.println("read exception");
+                        e.printStackTrace();
+                    }
+                    System.out.println("read finish");
+                }
+            };
+
+            Thread writeThread = new Thread() {
+                @Override
+                public void run() {
+                    try {
+                        BufferedOutputStream out = new BufferedOutputStream(socket.getOutputStream());
+                        Thread.currentThread().sleep(10);
+                        byte[] b = "a".getBytes();
+                        out.write(b);
+                        out.flush();
+                    } catch (IOException | InterruptedException e) {
+                        System.out.println("write exception");
+                        e.printStackTrace();
+                    }
+                    System.out.println("write finish");
+                }
+            };
+            
+
+            readThread.start();
+            writeThread.start();
+            writeThread.join();
+            serverThread.join();
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+        
+    }
+
+    @Test
+    public void testParsing() {
+        // byte[] buffer = {'a', 'b','\0', '7', '\0', '!', ';'};
+        // String str = new String(buffer, StandardCharsets.UTF_8);
+        // System.out.println((int)str.charAt(2));
+        // System.out.println((int)'\0');
+        // System.out.println((int)' ');
+        System.out.println((int)'A');
+        // System.out.println((byte)1);
+        
+        int a = 33;
+        byte b = (byte)a;
+        // System.out.println(b);
+        byte[] bytes = {b}; 
+        String s = new String(bytes);
+        System.out.println(s);
     }
 }

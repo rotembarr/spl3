@@ -11,7 +11,7 @@ public class BlockingConnections<T> implements Connections<T>{
 
     Map<Integer, ConnectionHandler<T>> idToHandlerMap = null;
 
-    public boolean send(int connectionId, T msg) {
+    public synchronized boolean send(int connectionId, T msg) {
         ConnectionHandler<T> handler = idToHandlerMap.get(connectionId);
         
         if (handler == null) {
@@ -22,7 +22,7 @@ public class BlockingConnections<T> implements Connections<T>{
         return true;
     }
 
-    public void broadcast(T msg) {
+    public synchronized void broadcast(T msg) {
         Collection<ConnectionHandler<T>> handlers = this.idToHandlerMap.values();
         for (Iterator<ConnectionHandler<T>> iter = handlers.iterator(); iter.hasNext(); ) {
             ConnectionHandler<T> handler = iter.next();
@@ -30,7 +30,7 @@ public class BlockingConnections<T> implements Connections<T>{
         }
     }
 
-    public boolean connect(int connectionId, ConnectionHandler<T> handler) {
+    public synchronized boolean connect(int connectionId, ConnectionHandler<T> handler) {
         if (this.idToHandlerMap.containsKey(connectionId)) {
             return false;
         } else {
@@ -39,7 +39,7 @@ public class BlockingConnections<T> implements Connections<T>{
         }
     }
 
-    public void disconnect(int connectionId) {
+    public synchronized void disconnect(int connectionId) {
         this.idToHandlerMap.remove(connectionId);
     }
     
