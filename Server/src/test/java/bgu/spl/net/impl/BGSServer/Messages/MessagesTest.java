@@ -2,6 +2,7 @@ package bgu.spl.net.impl.BGSServer.Messages;
 
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -105,20 +106,31 @@ public class MessagesTest {
     }
 
     @Test
-    public void testParsing() {
-        // byte[] buffer = {'a', 'b','\0', '7', '\0', '!', ';'};
-        // String str = new String(buffer, StandardCharsets.UTF_8);
-        // System.out.println((int)str.charAt(2));
-        // System.out.println((int)'\0');
-        // System.out.println((int)' ');
-        System.out.println((int)'A');
-        // System.out.println((byte)1);
-        
-        int a = 33;
-        byte b = (byte)a;
-        // System.out.println(b);
-        byte[] bytes = {b}; 
-        String s = new String(bytes);
-        System.out.println(s);
+    public void testRegisterParsing() {
+        String s = "aaa" + '\0' + "bbb" + '\0' + "ccc" + '\0';
+        RegisterMessage msg = new RegisterMessage(s);
+        assertEquals("aaa", msg.getUsername());
+        assertEquals("bbb", msg.getPassword());
+        assertEquals("ccc", msg.getBirthday());
+    }
+
+    @Test
+    public void testloginParsing() {
+        byte[] charset = {7};
+        String s = "aaa" + '\0' + "bbb" + '\0' + new String(charset, StandardCharsets.UTF_8);
+        LoginMessage msg = new LoginMessage(s);
+        assertEquals("aaa", msg.getUsername());
+        assertEquals("bbb", msg.getPassword());
+        assertEquals(7, msg.getCaptcha());
+    }
+
+
+    @Test
+    public void testFollowParsing() {
+        byte[] follow = {1};
+        String s = new String(follow, StandardCharsets.UTF_8) +  "aaa" + '\0';
+        FollowMessage msg = new FollowMessage(s);
+        assertEquals(1, msg.getFollow());
+        assertEquals("aaa", msg.getUsername());
     }
 }

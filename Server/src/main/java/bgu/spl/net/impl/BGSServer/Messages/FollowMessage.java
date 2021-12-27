@@ -1,27 +1,28 @@
 package bgu.spl.net.impl.BGSServer.Messages;
 
 public class FollowMessage extends BGSMessage {
-    char follow;
-    String username;
-    
+    private final char follow;
+    private final String username;
+
+    public char getFollow() {
+        return this.follow;
+    }
+
+    public String getUsername() {
+        return this.username;
+    }
+
     public FollowMessage(String src) {
         super(BGSMessage.Opcode.FOLLOW);
         this.follow = src.charAt(0);
-        this.username = src.substring(2);
+        this.username = src.substring(1, src.length()-1);
     }
 
-
     public String encode() {
-        return null;
+        return BGSMessage.opcodeToString(this.opcode) + (byte)this.follow + this.username + '\0';
     }
     
     public String toString() {
-        return this.follow + " " + this.username;
-    }
-
-    public String ack() {
-        // 
-        // 04 is FOLLOW Opcode.
-        return "04" + this.username + '\0'; 
+        return "Follow(" + this.hashCode() + "):" + this.follow + " " + this.username;
     }
 } 

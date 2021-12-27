@@ -5,6 +5,7 @@ import java.util.Arrays;
 
 import bgu.spl.net.api.MessageEncoderDecoder;
 import bgu.spl.net.impl.BGSServer.Messages.BGSMessage;
+import bgu.spl.net.impl.BGSServer.Messages.BlockMessage;
 import bgu.spl.net.impl.BGSServer.Messages.FollowMessage;
 import bgu.spl.net.impl.BGSServer.Messages.LogStatMessage;
 import bgu.spl.net.impl.BGSServer.Messages.LoginMessage;
@@ -33,14 +34,10 @@ public class BGSEncoderDecoder implements MessageEncoderDecoder<BGSMessage> {
 
             // Parse input message from decimal to UTF-8.
             String buffer = new String(this.bytes, StandardCharsets.UTF_8);
+            BGSMessage.Opcode opcode = BGSMessage.stringToOpcode(buffer.substring(0,2));
             buffer = buffer.substring(2); // Remove opcode
             
-            // bytes[0]
-            // bytes[1]
-            
             // Create message accordin to opcode.
-            // TODO mor: understand how opcode is passing, and correct this code.
-            BGSMessage.Opcode opcode = Opcode.NONE; //TODO - here is the changing
             if (opcode == BGSMessage.Opcode.REGISTER) {
                 return new RegisterMessage(buffer);
             } else if (opcode == BGSMessage.Opcode.LOGIN) {
@@ -59,6 +56,8 @@ public class BGSEncoderDecoder implements MessageEncoderDecoder<BGSMessage> {
                 return new StatMessage(buffer);
             } else if (opcode == BGSMessage.Opcode.NOTIFICATION) {
                 return new NotificationMessage(buffer);
+            } else if (opcode == BGSMessage.Opcode.BLOCK) {
+                return new BlockMessage(buffer);
             } else {
                 System.out.println("Error parsing enc dec");
             }
@@ -79,8 +78,7 @@ public class BGSEncoderDecoder implements MessageEncoderDecoder<BGSMessage> {
 
     @Override
     public byte[] encode(BGSMessage message) {
-        return (message.toString() + ";").getBytes(); //uses utf8 by default
-        // TODO change to encode
+        return (message.encode() + ";").getBytes(); //uses utf8 by default
     }
 
 }

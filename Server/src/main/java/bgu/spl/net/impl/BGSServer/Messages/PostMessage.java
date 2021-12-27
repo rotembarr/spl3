@@ -1,15 +1,19 @@
 package bgu.spl.net.impl.BGSServer.Messages;
 
 public class PostMessage extends BGSMessage{
-    String content;
+    private String content;
+
+    public String getContent() {
+        return this.content;
+    }
     
     public PostMessage(String src) {
         super(BGSMessage.Opcode.POST);
-        this.content = src.substring(0, -1);
+        this.content = src.substring(0, src.length()-1);
     }
 
     public String encode() {
-        return null;
+        return BGSMessage.opcodeToString(this.opcode) + this.content + '\0';
     }
     
     public String toString() {

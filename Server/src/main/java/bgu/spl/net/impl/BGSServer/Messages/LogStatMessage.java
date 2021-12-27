@@ -7,7 +7,7 @@ public class LogStatMessage extends BGSMessage{
     }
 
     public String encode() {
-        return null;
+        return BGSMessage.opcodeToString(this.opcode);
     }
 
     public String toString() {
