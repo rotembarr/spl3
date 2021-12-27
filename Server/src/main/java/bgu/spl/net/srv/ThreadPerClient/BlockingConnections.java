@@ -1,6 +1,7 @@
 package bgu.spl.net.srv.ThreadPerClient;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -9,7 +10,13 @@ import bgu.spl.net.srv.bidi.ConnectionHandler;
 
 public class BlockingConnections<T> implements Connections<T>{
 
-    Map<Integer, ConnectionHandler<T>> idToHandlerMap = null;
+    private Map<Integer, ConnectionHandler<T>> idToHandlerMap = null;
+    private int connectionsCounter; 
+
+    public BlockingConnections() {
+        this.idToHandlerMap = new HashMap<Integer, ConnectionHandler<T>>();
+        this.connectionsCounter = 0;
+    }
 
     public synchronized boolean send(int connectionId, T msg) {
         ConnectionHandler<T> handler = idToHandlerMap.get(connectionId);
@@ -30,17 +37,17 @@ public class BlockingConnections<T> implements Connections<T>{
         }
     }
 
-    public synchronized boolean connect(int connectionId, ConnectionHandler<T> handler) {
-        if (this.idToHandlerMap.containsKey(connectionId)) {
-            return false;
+
+    public synchronized int connect(ConnectionHandler<T> handler) {
+        if (this.idToHandlerMap.containsValue(handler)) {
+            return -1;
         } else {
-            this.idToHandlerMap.put(connectionId, handler);
-            return true;
+            this.idToHandlerMap.put(this.connectionsCounter, handler);
+            return ++this.connectionsCounter;
         }
     }
 
     public synchronized void disconnect(int connectionId) {
         this.idToHandlerMap.remove(connectionId);
-    }
-    
+    }    
 }

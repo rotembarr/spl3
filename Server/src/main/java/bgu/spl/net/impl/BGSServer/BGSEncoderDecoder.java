@@ -15,7 +15,6 @@ import bgu.spl.net.impl.BGSServer.Messages.PMMessage;
 import bgu.spl.net.impl.BGSServer.Messages.PostMessage;
 import bgu.spl.net.impl.BGSServer.Messages.RegisterMessage;
 import bgu.spl.net.impl.BGSServer.Messages.StatMessage;
-import bgu.spl.net.impl.BGSServer.Messages.BGSMessage.Opcode;
 
 public class BGSEncoderDecoder implements MessageEncoderDecoder<BGSMessage> {
     private byte[] bytes = new byte[1 << 10]; //start with 1k

@@ -9,15 +9,15 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-
-import bgu.spl.net.api.bidi.Connections;
-import bgu.spl.net.impl.BGSServer.BGSEncoderDecoder;
-import bgu.spl.net.impl.BGSServer.BGSProtocol;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class TPCMain {
 
     public static void main(String[] args) {
-        Connections<BGSMessage> connections; // TODO
+
+        // Create a map to all users.
+        Map<String, BGSStudent> usernamesToIdMap = new ConcurrentHashMap<String, BGSStudent>();
 
         if (args.length != 1) {
             System.out.println("Bad parameters passes. Usage <port> <Num of threads>");
@@ -25,7 +25,7 @@ public class TPCMain {
 
        Server.<BGSMessage>threadPerClient(
             Integer.parseInt(args[0]),
-            () -> new BGSProtocol(), //protocol factory
+            () -> new BGSProtocol(usernamesToIdMap), //protocol factory
             () -> new BGSEncoderDecoder() //message encoder decoder factory
        ).serve();
     }

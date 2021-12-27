@@ -2,6 +2,9 @@ package bgu.spl.net.srv;
 
 import bgu.spl.net.api.MessageEncoderDecoder;
 import bgu.spl.net.api.bidi.BidiMessagingProtocol;
+import bgu.spl.net.api.bidi.Connections;
+import bgu.spl.net.srv.ThreadPerClient.BlockingConnections;
+
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -9,9 +12,13 @@ import java.util.function.Supplier;
 
 public abstract class BaseServer<T> implements Server<T> {
 
-    private final int port;
+    // Messaging.
     private final Supplier<BidiMessagingProtocol<T>> protocolFactory;
     private final Supplier<MessageEncoderDecoder<T>> encdecFactory;
+    private Connections<T> connections;
+
+    // Socket.
+    private final int port;
     private ServerSocket sock;
 
     public BaseServer(
@@ -23,6 +30,7 @@ public abstract class BaseServer<T> implements Server<T> {
         this.protocolFactory = protocolFactory;
         this.encdecFactory = encdecFactory;
 		this.sock = null;
+        this.connections = new BlockingConnections<T>();
     }
 
     @Override
@@ -35,13 +43,21 @@ public abstract class BaseServer<T> implements Server<T> {
 
             while (!Thread.currentThread().isInterrupted()) {
 
+                // Accept new client.
                 Socket clientSock = serverSock.accept();
                 System.out.println("Server accept");
 
-                BlockingConnectionHandler<T> handler = new BlockingConnectionHandler<>(
+                // Create message handlers.
+                MessageEncoderDecoder<T> encdec = encdecFactory.get();
+                BidiMessagingProtocol<T> protocol = protocolFactory.get();
+
+                // Run Connection-Handler!!!
+                // Here is a user define way of running.
+                BlockingConnectionHandler<T> handler = new BlockingConnectionHandler<T>(
                         clientSock,
-                        encdecFactory.get(),
-                        protocolFactory.get());
+                        this.connections,
+                        encdec,
+                        protocol);
 
                 execute(handler);
             }
