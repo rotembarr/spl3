@@ -1,5 +1,9 @@
 package bgu.spl.net.impl.BGSServer;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import bgu.spl.net.api.bidi.BidiMessagingProtocol;
@@ -61,45 +65,32 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
         } else if (msg instanceof FollowMessage) {
             this.handleFollowMessage((FollowMessage)msg);
         } else if (msg instanceof PostMessage) {
-            PostMessage castMsg = (PostMessage)msg;
-
+            this.handlePostMessage((PostMessage)msg);
         } else if (msg instanceof PMMessage) {
-            PMMessage castMsg = (PMMessage)msg;
-
+            this.handlePMMessage((PMMessage)msg);
         } else if (msg instanceof LogStatMessage) {
-            LogStatMessage castMsg = (LogStatMessage)msg;
-
+            this.handleLogStatMessage((LogStatMessage)msg);
         } else if (msg instanceof StatMessage) {
-            StatMessage castMsg = (StatMessage)msg;
-
-        } else if (msg instanceof NotificationMessage) {
-            NotificationMessage castMsg = (NotificationMessage)msg;
-
+            this.handleStatMessage((StatMessage)msg);
         } else if (msg instanceof BlockMessage) {
-            BlockMessage castMsg = (BlockMessage)msg;
+            this.handleBlockMessage((BlockMessage)msg);
         } else {
             System.out.println("Unrecognized msg arrived to protocol");
         }
-
-        // shouldTerminate = "bye".equals(msg);
-        // System.out.println("[" + LocalDateTime.now() + "]: " + msg);
-        // TODO
     }    
 
     public void handleRegisteMessage(RegisterMessage msg) {
 
-            // Cannot register a register user.
-            if (this.usernamesToStudentMap.containsKey(msg.getUsername())) {
-                ErrorMessage error = new ErrorMessage(BGSMessage.Opcode.REGISTER);
-                this.connections.send(this.connectionId, msg);
-            
-            // Create student but don't connect him.
-            } else {
-                BGSStudent newStudent = new BGSStudent(msg.getUsername(), msg.getPassword(), msg.getBirthday());
-                this.usernamesToStudentMap.put(msg.getUsername(), newStudent);
-                AckMessage ack = new AckMessage(BGSMessage.Opcode.REGISTER, "");
-                this.connections.send(this.connectionId, ack);
-            }
+        // Cannot register a register user.
+        if (this.usernamesToStudentMap.containsKey(msg.getUsername())) {
+            this.sendError(BGSMessage.Opcode.REGISTER);
+        
+        // Create student but don't connect him.
+        } else {
+            BGSStudent newStudent = new BGSStudent(msg.getUsername(), msg.getPassword(), msg.getBirthday());
+            this.usernamesToStudentMap.put(msg.getUsername(), newStudent);
+            this.sendAck(BGSMessage.Opcode.REGISTER, "");
+        }
     }
 
     private void handleLoginMessage(LoginMessage msg) {
@@ -110,8 +101,7 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
 
         // Student isn't loged in.
         if (mapedStudent == null) {
-            ErrorMessage error = new ErrorMessage(BGSMessage.Opcode.LOGIN);
-            this.connections.send(this.connectionId, error);
+            this.sendError(BGSMessage.Opcode.LOGIN);
             return;
         }
 
@@ -121,22 +111,19 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
 
             // Student already logged in.
             if (this.connections.isConnected(mapedStudent.getConnectionId())) { 
-                ErrorMessage error = new ErrorMessage(BGSMessage.Opcode.LOGIN);
-                this.connections.send(this.connectionId, error);
+                this.sendError(BGSMessage.Opcode.LOGIN);
                 return;
             }
             
             // Passwrords doesn't matches.
             if (!mapedStudent.getPassword().equals(msg.getPassword())) {
-                ErrorMessage error = new ErrorMessage(BGSMessage.Opcode.LOGIN);
-                this.connections.send(this.connectionId, error);
+                this.sendError(BGSMessage.Opcode.LOGIN);
                 return;
             }
     
             // Captcha is 0.
             if (msg.getCaptcha() == (byte)0) {
-                ErrorMessage error = new ErrorMessage(BGSMessage.Opcode.LOGIN);
-                this.connections.send(this.connectionId, error);
+                this.sendError(BGSMessage.Opcode.LOGIN);
                 return;
             }
     
@@ -151,8 +138,7 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
 
         // if no user register to this connection id send error.
         if (this.student == null) {
-            ErrorMessage error = new ErrorMessage(BGSMessage.Opcode.LOGOUT);
-            this.connections.send(this.connectionId, error);
+            this.sendError(BGSMessage.Opcode.LOGOUT);
         } else {
 
             // Make this student unconnected.
@@ -162,8 +148,7 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
             this.student = null;
 
             // After this ack sent, the client will close the connection, and this protocol will die.
-            AckMessage ack = new AckMessage(BGSMessage.Opcode.LOGOUT, "");
-            this.connections.send(this.connectionId, ack);
+            this.sendAck(BGSMessage.Opcode.LOGOUT, "");
         }
     }
 
@@ -209,13 +194,176 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
             System.out.println("Error in follow message");
         }
 
-        AckMessage ack = new AckMessage(BGSMessage.Opcode.FOLLOW, msg.getUsername() + '\0');
-        this.connections.send(this.connectionId, ack);        
+        this.sendAck(BGSMessage.Opcode.FOLLOW, msg.getUsername() + '\0');
+    }
+
+    private void handlePostMessage(PostMessage msg) {
+
+        // if no user loged in for this connection id.
+        if (this.student == null) {
+            this.sendError(BGSMessage.Opcode.POST);
+            return;
+        } 
+
+        // Create notification msg to send for all the destenation users.
+        NotificationMessage notiMsg = new NotificationMessage((byte)1, this.student.getUsername(), msg.getContent());
+
+        // Send the post to all the follwers.
+        Collection<BGSStudent> dstStudents = this.student.getFollowers();
+        synchronized (dstStudents) { // TODO
+            for (Iterator<BGSStudent> iter = dstStudents.iterator(); iter.hasNext(); ) {
+                BGSStudent dst = iter.next();
+                boolean success = this.connections.send(dst.getConnectionId(), notiMsg);
+                if (!success) {
+                    dst.backupNotification(notiMsg);
+                }
+            }
+        }
+
+        // Search directed users and send them also the post.
+        String[] contentInWords = msg.getContent().split(" ");
+        for (int i = 0; i < contentInWords.length; i++) {
+            if (contentInWords[i].charAt(0) ==  '@') {
+                BGSStudent directedStudent = this.usernamesToStudentMap.get(contentInWords[i].substring(1));
+                if (directedStudent != null && !this.student.isBlocking(directedStudent) && !directedStudent.isBlocking(this.student)) {
+                    boolean success = this.connections.send(directedStudent.getConnectionId(), notiMsg);
+                    if (!success) {
+                        directedStudent.backupNotification(notiMsg);
+                    }
+                }
+            }
+        }
+
+        this.student.savePost(msg);
+        this.sendAck(BGSMessage.Opcode.POST, "");
+    }
+
+    private void handlePMMessage(PMMessage msg) {
+        
+        // if no user loged in for this connection id.
+        if (this.student == null) {
+            this.sendError(BGSMessage.Opcode.PM);
+            return;
+        } 
+
+        // If dst user doesn't register.
+        BGSStudent dst = this.usernamesToStudentMap.get(msg.getUsername());
+        if (dst == null) {
+            this.sendError(BGSMessage.Opcode.PM);
+            return;
+        } 
+
+        // TODO - this is my add
+        if (dst.isBlocking(this.student) || this.student.isBlocking(dst)) {
+            this.sendError(BGSMessage.Opcode.PM);
+            return;
+        } 
+
+        // // if this.student isn't following dst user.
+        // if (!this.student.isFollowing(dst)) {
+        //     this.sendError(BGSMessage.Opcode.PM);
+        //     return;
+        // } TODO
+
+        // Create notification msg to destenation user.
+        msg.filter();
+        NotificationMessage notiMsg = new NotificationMessage((byte)0, this.student.getUsername(), msg.getContent());
+
+        // Send noti msg to dest, and save it if dest isn't connected.
+        boolean success = this.connections.send(dst.getConnectionId(), notiMsg);
+        if (!success) {
+            dst.backupNotification(notiMsg);
+        }
+
+        this.student.savePM(msg);
+        this.sendAck(BGSMessage.Opcode.PM, "");
+    } 
+
+    private void handleLogStatMessage(LogStatMessage msg) {
+
+        // if no user loged in for this connection id.
+        if (this.student == null) {
+            this.sendError(BGSMessage.Opcode.LOGSTAT);
+            return;
+        } 
+
+        // Create ack msg content.
+        String content = ""; // TODO - handle block
+        Collection<BGSStudent> students = this.usernamesToStudentMap.values();
+        for (Iterator<BGSStudent> iter =students.iterator(); iter.hasNext(); ) {
+            BGSStudent currentStudent = iter.next();
+            content += new String(BGSMessage.shortToBytes((short)currentStudent.getAge()), StandardCharsets.UTF_8);
+            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfPosts()), StandardCharsets.UTF_8);
+            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowers()), StandardCharsets.UTF_8);
+            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowing()), StandardCharsets.UTF_8);
+        }
+
+        this.sendAck(BGSMessage.Opcode.LOGSTAT, content);
+    }
+
+    private void handleStatMessage(StatMessage msg) {
+
+        // if no user loged in for this connection id.
+        if (this.student == null) {
+            this.sendError(BGSMessage.Opcode.STAT);
+            return;
+        } 
+
+        // if one of the usernames isn't register.
+        List<String> usernames = msg.getUsernames();
+        for (Iterator<String> iter = usernames.iterator(); iter.hasNext(); ) {
+            String username = iter.next();
+            if (!this.usernamesToStudentMap.containsKey(username)) {
+                this.sendError(BGSMessage.Opcode.STAT);
+                return;
+            }
+        }
+
+        // Create ack msg content.
+        String content = ""; // TODO - handle block
+        for (Iterator<String> iter = usernames.iterator(); iter.hasNext(); ) {
+            BGSStudent currentStudent = this.usernamesToStudentMap.get(iter.next());
+            content += new String(BGSMessage.shortToBytes((short)currentStudent.getAge()), StandardCharsets.UTF_8);
+            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfPosts()), StandardCharsets.UTF_8);
+            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowers()), StandardCharsets.UTF_8);
+            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowing()), StandardCharsets.UTF_8);
+        }
+
+        // Send msg back.
+        this.sendAck(BGSMessage.Opcode.STAT, content);
+    }
+
+
+    private void handleBlockMessage(BlockMessage msg) {
+        
+        // if no user loged in for this connection id.
+        if (this.student == null) {
+            this.sendError(BGSMessage.Opcode.BLOCK);
+            return;
+        } 
+
+        // if bad username to block.
+        BGSStudent blockedStudent = this.usernamesToStudentMap.get(msg.getUsername());
+        if (blockedStudent == null) {
+            this.sendError(BGSMessage.Opcode.BLOCK);
+            return;
+        } 
+        
+        // Blocking.
+        this.student.block(blockedStudent);
+        
+        // Send msg back.
+        this.sendAck(BGSMessage.Opcode.BLOCK, "");
     }
 
     private void sendError(BGSMessage.Opcode opcode) {
         ErrorMessage error = new ErrorMessage(opcode);
         this.connections.send(this.connectionId, error);
+    }
+
+    private void sendAck(BGSMessage.Opcode opcode, String optional) {
+        AckMessage ack = new AckMessage(opcode, optional);
+        this.connections.send(this.connectionId, ack);        
     }
 
     @Override

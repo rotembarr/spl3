@@ -2,25 +2,17 @@ package bgu.spl.net.impl.BGSServer.Messages;
 
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.io.IOError;
 import java.io.IOException;
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 
-import bgu.spl.net.impl.BGSServer.BGSEncoderDecoder;
+import bgu.spl.net.impl.BGSServer.Filter;
 
 public class MessagesTest {
     
@@ -32,12 +24,8 @@ public class MessagesTest {
         for (String part : parts) {
             System.out.println(part);
         }
-
-        
-        // String s = Short.((short)9);
-        // System.out.println(s.length());
-        // System.out.println(s);
     }
+
     @Test
     public void TestSocket() {
         Thread serverThread = new Thread() {
@@ -132,5 +120,28 @@ public class MessagesTest {
         FollowMessage msg = new FollowMessage(s);
         assertEquals(1, msg.getFollow());
         assertEquals("aaa", msg.getUsername());
+    }
+
+    @Test
+    public void testd() {
+        String[] arr = "@dsdsf asdasda dsvsdv sd @sf asd @sds dssdf @waas".split(" ");
+        for (int i = 0; i < arr.length; i++) {
+            if (arr[i].charAt(0) ==  '@') {
+                System.out.println(arr[i].substring(1));
+            }
+        }
+
+        String text = "as ds a Kaki dv@ dsvd !@# Kakidss sdsaa daspipi  sv ";
+        System.out.println(Filter.filter(text));
+        
+        short a = 49;
+        String s = new String(BGSMessage.shortToBytes(a), StandardCharsets.UTF_8);
+        System.out.println(s);
+        System.out.println(s.length());
+
+        String d = "11";
+        int k = Integer.parseInt(d);
+        System.out.println(k);
+
     }
 }

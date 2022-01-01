@@ -1,9 +1,9 @@
 package bgu.spl.net.impl.BGSServer.Messages;
 
 public class NotificationMessage extends BGSMessage{
-    private byte type;
-    private String postingUser;
-    private String content;
+    private final byte type;
+    private final String postingUser;
+    private final String content;
 
     public byte getType() {
         return this.type;
@@ -17,12 +17,19 @@ public class NotificationMessage extends BGSMessage{
         return this.content;
     }
     
-    public NotificationMessage(String src) {
+    // public NotificationMessage(String src) {
+    //     super(BGSMessage.Opcode.NOTIFICATION);
+    //     this.type = (byte)src.charAt(0);
+    //     String[] parts = src.split("\0");
+    //     this.postingUser = parts[0];
+    //     this.content = parts[1];
+    // }
+
+    public NotificationMessage(byte type, String postingUser, String content) {
         super(BGSMessage.Opcode.NOTIFICATION);
-        this.type = (byte)src.charAt(0);
-        String[] parts = src.split("\0");
-        this.postingUser = parts[0];
-        this.content = parts[1];
+        this.type = type;
+        this.postingUser = postingUser;
+        this.content = content;
     }
 
     public String encode() {

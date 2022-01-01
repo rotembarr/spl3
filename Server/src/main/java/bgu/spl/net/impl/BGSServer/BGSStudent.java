@@ -1,10 +1,17 @@
 package bgu.spl.net.impl.BGSServer;
 
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import bgu.spl.net.impl.BGSServer.Messages.NotificationMessage;
+import bgu.spl.net.impl.BGSServer.Messages.PMMessage;
+import bgu.spl.net.impl.BGSServer.Messages.PostMessage;
 
 public class BGSStudent {
     private final String username;
@@ -13,7 +20,28 @@ public class BGSStudent {
     private AtomicInteger connectionId; // one thread will write but multiple reads.
     private List<BGSStudent> following; // one thread read and write.
     private Collection<BGSStudent> followers; // multiple therad write and one read.
-    
+    private Collection<BGSStudent> blocked; // multiple therad write and one read.
+    private Collection<NotificationMessage> backupNotifications; // multiple therad write and one read.
+
+    // Statistics (can be accessed from multiple threads).
+    private Collection<PostMessage> posts;
+    private Collection<PMMessage> pms;
+
+    // Constructor.
+    public BGSStudent(String username, String password, String birthday) {
+        this.username = username;
+        this.password = password;
+        this.birthday = birthday;
+        this.connectionId.set(-1);
+        this.following = new LinkedList<BGSStudent>();
+        this.followers = new ConcurrentLinkedDeque<BGSStudent>();
+        this.blocked = new ConcurrentLinkedDeque<BGSStudent>();
+        this.posts = new ConcurrentLinkedDeque<PostMessage>();
+        this.pms = new ConcurrentLinkedDeque<PMMessage>();
+        this.backupNotifications = new ConcurrentLinkedDeque<NotificationMessage>(); 
+    }
+
+    // Getters and Setters
     public String getUsername() {
         return this.username;
     }
@@ -34,7 +62,40 @@ public class BGSStudent {
         this.connectionId.set(connectionId);;
     }
 
+    public int getNumOfPosts() {
+        return this.posts.size();
+    }
+
+    public int getAge() {
+        String[] bd = this.birthday.split("-");
+        Period period = Period.between(LocalDate.now(), LocalDate.of(Integer.parseInt(bd[2]), Integer.parseInt(bd[1]), Integer.parseInt(bd[0])));
+        return period.getYears();
+    }
+
+    public int getNumOfFollowers() {
+        return this.followers.size();
+    }
+
+    public int getNumOfFollowing() {
+        return this.following.size();
+    }
+
+    public Collection<BGSStudent> getFollowers() {
+        return this.followers;
+    }
+
+    public boolean isFollowing(BGSStudent student) {
+        return this.following.contains(student);
+    }
+
+
+    // Logic functions.
     public boolean follow(BGSStudent studentToFollow) {
+        
+        // Dont add blocked users.
+        if (this.blocked.contains(studentToFollow)) {
+            return false;
+        } 
 
         // Add followers to other.
         if (!studentToFollow.addFollower(this)) {
@@ -46,10 +107,16 @@ public class BGSStudent {
     }
 
     protected boolean addFollower(BGSStudent student) {
+        
+        // Dont add blocked users.
+        if (this.blocked.contains(student)) {
+            return false;
+        } 
+
         return this.followers.add(student);
     }
 
-    protected boolean reomoveFollower(BGSStudent student) {
+    protected boolean reomoveFollower(BGSStudent student) {        
         return this.followers.remove(student);
     }
 
@@ -63,17 +130,33 @@ public class BGSStudent {
         return this.following.remove(studentToUnfollow);
     }
 
-    public boolean isFollowing(BGSStudent student) {
-        return this.following.contains(student);
+    public void savePost(PostMessage msg) {
+        this.posts.add(msg);
     }
 
-    public BGSStudent(String username, String password, String birthday) {
-        this.username = username;
-        this.password = password;
-        this.birthday = birthday;
-        this.connectionId.set(-1);
-        this.following = new LinkedList<BGSStudent>();
-        this.followers = new ConcurrentLinkedDeque<BGSStudent>();
+    public void savePM(PMMessage msg) {
+        this.pms.add(msg);
     }
-    
+
+    public void backupNotification(NotificationMessage msg) {
+        this.backupNotifications.add(msg);
+    }
+
+    public boolean isBlocking(BGSStudent student) {
+        return this.blocked.contains(student);
+    }
+
+    public void block(BGSStudent student) {
+        // Delete msgs from 'student'
+        for (Iterator<NotificationMessage> iter = this.backupNotifications.iterator(); iter.hasNext(); ) {
+            NotificationMessage msg = iter.next();
+            if (msg.getPostingUser().equals(student.getUsername())) {
+                iter.remove();
+            }
+        }
+
+        // Unfollow each other.
+        this.unfollow(student);
+        student.unfollow(this);
+    }
 }

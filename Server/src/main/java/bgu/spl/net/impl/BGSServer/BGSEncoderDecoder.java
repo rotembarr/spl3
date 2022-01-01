@@ -10,7 +10,6 @@ import bgu.spl.net.impl.BGSServer.Messages.FollowMessage;
 import bgu.spl.net.impl.BGSServer.Messages.LogStatMessage;
 import bgu.spl.net.impl.BGSServer.Messages.LoginMessage;
 import bgu.spl.net.impl.BGSServer.Messages.LogoutMessage;
-import bgu.spl.net.impl.BGSServer.Messages.NotificationMessage;
 import bgu.spl.net.impl.BGSServer.Messages.PMMessage;
 import bgu.spl.net.impl.BGSServer.Messages.PostMessage;
 import bgu.spl.net.impl.BGSServer.Messages.RegisterMessage;
@@ -32,7 +31,7 @@ public class BGSEncoderDecoder implements MessageEncoderDecoder<BGSMessage> {
             }
 
             // Parse input message from decimal to UTF-8.
-            String buffer = new String(this.bytes, StandardCharsets.UTF_8);
+            String buffer = new String(Arrays.copyOfRange(this.bytes, 0, len), StandardCharsets.UTF_8);
             BGSMessage.Opcode opcode = BGSMessage.stringToOpcode(buffer.substring(0,2));
             buffer = buffer.substring(2); // Remove opcode
             
@@ -53,8 +52,6 @@ public class BGSEncoderDecoder implements MessageEncoderDecoder<BGSMessage> {
                 return new LogStatMessage(buffer);
             } else if (opcode == BGSMessage.Opcode.STAT) {
                 return new StatMessage(buffer);
-            } else if (opcode == BGSMessage.Opcode.NOTIFICATION) {
-                return new NotificationMessage(buffer);
             } else if (opcode == BGSMessage.Opcode.BLOCK) {
                 return new BlockMessage(buffer);
             } else {

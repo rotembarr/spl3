@@ -1,5 +1,7 @@
 package bgu.spl.net.impl.BGSServer.Messages;
 
+import bgu.spl.net.impl.BGSServer.Filter;
+
 public class PMMessage extends BGSMessage{
     private String username;
     private String content;
@@ -17,6 +19,9 @@ public class PMMessage extends BGSMessage{
         return this.sendingDateAndTime;
     }
     
+    public void filter() {
+        this.content = Filter.filter(this.content);
+    }
     public PMMessage(String src) {
         super(BGSMessage.Opcode.PM);
         String[] parts = src.split("\0");
