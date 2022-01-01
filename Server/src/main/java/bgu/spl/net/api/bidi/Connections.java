@@ -7,6 +7,8 @@ public interface Connections<T> {
     // TODO - ask if posible
     int connect(ConnectionHandler<T> handler);
 
+    boolean isConnected(int connectionId);
+
     boolean send(int connectionId, T msg);
 
     void broadcast(T msg);

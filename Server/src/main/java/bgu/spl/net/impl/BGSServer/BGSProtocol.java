@@ -14,18 +14,22 @@ import bgu.spl.net.impl.BGSServer.Messages.PostMessage;
 import bgu.spl.net.impl.BGSServer.Messages.PMMessage;
 import bgu.spl.net.impl.BGSServer.Messages.LogStatMessage;
 import bgu.spl.net.impl.BGSServer.Messages.StatMessage;
-import bgu.spl.net.impl.BGSServer.Messages.BGSMessage.Opcode;
 import bgu.spl.net.impl.BGSServer.Messages.NotificationMessage;
 import bgu.spl.net.impl.BGSServer.Messages.BlockMessage;
 import bgu.spl.net.impl.BGSServer.Messages.ErrorMessage;
-import bgu.spl.net.impl.BGSServer.BGSStudent;
 
 public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
     
-    private boolean shouldTerminate = false;
+    // BGU Variables.
+    private Map<String, BGSStudent> usernamesToStudentMap = null;
+    private BGSStudent student = null; // Student which the protocol represent.
+
+    // Protocol Variables.
     private int connectionId = -1;
     private Connections<BGSMessage> connections = null;
-    private Map<String, BGSStudent> usernamesToStudentMap = null;
+
+    // Local Variable.
+    private boolean shouldTerminate = false;
 
     public BGSProtocol(Map<String, BGSStudent> usernamesToStudentMap) {
         this.usernamesToStudentMap = usernamesToStudentMap; // This map has to be syncronized!
@@ -51,14 +55,11 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
         if (msg instanceof RegisterMessage) {
             this.handleRegisteMessage((RegisterMessage)msg);
         } else if (msg instanceof LoginMessage) {
-            LoginMessage castMsg = (LoginMessage)msg;
-
+            this.handleLoginMessage((LoginMessage)msg);
         } else if (msg instanceof LogoutMessage) {
-            LogoutMessage castMsg = (LogoutMessage)msg;
-
+            this.handleLogout((LogoutMessage)msg);
         } else if (msg instanceof FollowMessage) {
-            FollowMessage castMsg = (FollowMessage)msg;
-
+            this.handleFollowMessage((FollowMessage)msg);
         } else if (msg instanceof PostMessage) {
             PostMessage castMsg = (PostMessage)msg;
 
@@ -94,51 +95,127 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
             
             // Create student but don't connect him.
             } else {
-                BGSStudent student = new BGSStudent(msg.getUsername(), msg.getPassword(), msg.getBirthday());
-                this.usernamesToStudentMap.put(msg.getUsername(), student);
+                BGSStudent newStudent = new BGSStudent(msg.getUsername(), msg.getPassword(), msg.getBirthday());
+                this.usernamesToStudentMap.put(msg.getUsername(), newStudent);
                 AckMessage ack = new AckMessage(BGSMessage.Opcode.REGISTER, "");
+                this.connections.send(this.connectionId, ack);
             }
     }
 
-    public void handleLoginMessage(LoginMessage msg) {
+    private void handleLoginMessage(LoginMessage msg) {
         
         // Get studnt (null if doesn't exists).
         // Attention: Assuming no other connection handler think it represent this student.
-        BGSStudent student = this.usernamesToStudentMap.get(msg.getUsername());
+        BGSStudent mapedStudent = this.usernamesToStudentMap.get(msg.getUsername());
 
-        // Student isn't register.
-        if (student == null) {
+        // Student isn't loged in.
+        if (mapedStudent == null) {
             ErrorMessage error = new ErrorMessage(BGSMessage.Opcode.LOGIN);
-            this.connections.send(this.connectionId, msg);
+            this.connections.send(this.connectionId, error);
+            return;
+        }
+
+        // This code has to be in synchronized in order not to logged in twice the same student.
+        // TODO change to busy wait.
+        synchronized (mapedStudent) {
+
+            // Student already logged in.
+            if (this.connections.isConnected(mapedStudent.getConnectionId())) { 
+                ErrorMessage error = new ErrorMessage(BGSMessage.Opcode.LOGIN);
+                this.connections.send(this.connectionId, error);
+                return;
+            }
+            
+            // Passwrords doesn't matches.
+            if (!mapedStudent.getPassword().equals(msg.getPassword())) {
+                ErrorMessage error = new ErrorMessage(BGSMessage.Opcode.LOGIN);
+                this.connections.send(this.connectionId, error);
+                return;
+            }
+    
+            // Captcha is 0.
+            if (msg.getCaptcha() == (byte)0) {
+                ErrorMessage error = new ErrorMessage(BGSMessage.Opcode.LOGIN);
+                this.connections.send(this.connectionId, error);
+                return;
+            }
+    
+            // If login aproval, set his connectionId and open him to conversation.
+            // No need to synchronize this because this is the only thread anyone can change this student.
+            mapedStudent.setConnectionId(this.connectionId);        
+            this.student = mapedStudent;
+        }
+    }
+
+    private void handleLogout(LogoutMessage msg) {
+
+        // if no user register to this connection id send error.
+        if (this.student == null) {
+            ErrorMessage error = new ErrorMessage(BGSMessage.Opcode.LOGOUT);
+            this.connections.send(this.connectionId, error);
+        } else {
+
+            // Make this student unconnected.
+            // No need to synchronize this because this is the only thread anyone can change this student.
+            this.connections.disconnect(this.connectionId);
+            this.student.setConnectionId(-1);
+            this.student = null;
+
+            // After this ack sent, the client will close the connection, and this protocol will die.
+            AckMessage ack = new AckMessage(BGSMessage.Opcode.LOGOUT, "");
+            this.connections.send(this.connectionId, ack);
+        }
+    }
+
+    private void handleFollowMessage(FollowMessage msg) {
+
+        // if no user loged in for this connection id.
+        if (this.student == null) {
+            this.sendError(BGSMessage.Opcode.FOLLOW);
+            return;
+        } 
+
+        // If the target student isn't exists.
+        BGSStudent otherStudent = this.usernamesToStudentMap.get(msg.getUsername());
+        if (otherStudent == null) {
+            this.sendError(BGSMessage.Opcode.FOLLOW);
             return;
         }
         
-        // Passwrords doesn't matches.
-        if (!student.getPassword().equals(msg.getPassword())) {
-            ErrorMessage error = new ErrorMessage(BGSMessage.Opcode.LOGIN);
-            this.connections.send(this.connectionId, msg);
-            return;
-        }
-        
-        // Student already logged in.
-        if (student.isConnected()) {
-            ErrorMessage error = new ErrorMessage(BGSMessage.Opcode.LOGIN);
-            this.connections.send(this.connectionId, msg);
-            return;
+        // 0 for follow
+        if (msg.getFollow() == 0) {
+            
+            // Already following.
+            if (this.student.isFollowing(otherStudent)) {
+                this.sendError(BGSMessage.Opcode.FOLLOW);
+                return;
+            }
+
+            // Follow.
+            this.student.follow(otherStudent);
+
+        // 1 for unfollow
+        } else if (msg.getFollow() == 1) {
+            
+            // Not following.
+            if (!this.student.isFollowing(otherStudent)) {
+                this.sendError(BGSMessage.Opcode.FOLLOW);
+                return;
+            }
+
+            // Unfollow.
+            this.student.unfollow(otherStudent);
+        } else {
+            System.out.println("Error in follow message");
         }
 
-        // Captcha is 0.
-        if (msg.getCaptcha() == (byte)0) {
-            ErrorMessage error = new ErrorMessage(BGSMessage.Opcode.LOGIN);
-            this.connections.send(this.connectionId, msg);
-            return;
-        }
+        AckMessage ack = new AckMessage(BGSMessage.Opcode.FOLLOW, msg.getUsername() + '\0');
+        this.connections.send(this.connectionId, ack);        
+    }
 
-        // If login aproval, set his connectionId and open him to conversation.
-        synchronized(student) { // TODO
-            student.setConnectionId(this.connectionId);        
-            student.setConnected(true);
-        }
+    private void sendError(BGSMessage.Opcode opcode) {
+        ErrorMessage error = new ErrorMessage(opcode);
+        this.connections.send(this.connectionId, error);
     }
 
     @Override

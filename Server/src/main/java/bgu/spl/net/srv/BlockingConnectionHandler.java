@@ -8,6 +8,7 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler<T> {
 
@@ -20,7 +21,7 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
     private Connections<T> connections;
     private BufferedInputStream in;
     private BufferedOutputStream out;
-    private volatile int connectionId; // ID given by the connections.
+    private AtomicInteger connectionId; // ID given by the connections.
 
     // Internal use.
     private volatile boolean connected = true;
@@ -33,7 +34,7 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
         this.connections = connections;
         this.encdec = reader;
         this.protocol = protocol;
-        this.connectionId = -1;
+        this.connectionId = new AtomicInteger(-1);
         this.lock = new Object();
     }
     
@@ -43,7 +44,7 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
         synchronized (this.lock) { // TODO
     
             // We are not register yet \ Connection has closed.
-            if (this.connectionId == -1) {
+            if (this.connectionId.get() == -1) {
                 System.out.println("Couldn't send message to client " + this);
                 return;
             }
@@ -53,6 +54,7 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
                 this.out.write(this.encdec.encode(msg));
                 this.out.flush();
             } catch (IOException ex) {
+                this.close();
                 ex.printStackTrace();
             }
         }
@@ -63,18 +65,16 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
         try (Socket sock = this.sock) { //just for automatic closing
             int read;
 
-            // Synchronized this part in order not to get nessage to send while creating things.
-            synchronized (this.lock) {
-                // Create in&out buffers.
-                this.in = new BufferedInputStream(sock.getInputStream());
-                this.out = new BufferedOutputStream(sock.getOutputStream());
-    
-                // Register ourselves to connections.
-                this.connectionId = this.connections.connect(this);
-    
-                // Activate our Protocol.
-                this.protocol.start(this.connectionId, connections);
-            }
+            // Create in&out buffers.
+            this.in = new BufferedInputStream(sock.getInputStream());
+            this.out = new BufferedOutputStream(sock.getOutputStream());
+
+            // Register ourselves to connections.
+            this.connectionId.set(connections.connect(this));
+
+            // Activate our Protocol. 
+            // No way anyone send us message up to protocol will start, so no way of thread will insert between us.
+            this.protocol.start(this.connectionId.get(), connections);
 
             // Reading loop.
             while (!this.protocol.shouldTerminate() && this.connected && (read = this.in.read()) >= 0) {
@@ -85,22 +85,26 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
             }
 
         } catch (IOException ex) {
-            synchronized (lock) {
-                this.connectionId = -1;
-            }
+            this.close();
             ex.printStackTrace();
         }
-
-        // Unregister.
-        synchronized (lock) {
-            this.connectionId = -1;
-        }
-        this.connections.disconnect(this.connectionId);
+        
+        // Unregister and close socket.
+        this.close();
     }
 
     @Override
-    public void close() throws IOException {
-        connected = false;
-        sock.close();
+    public void close() {
+        this.connected = false;
+        this.connections.disconnect(this.connectionId.get());
+        this.connectionId.set(-1);
+        try {
+            if (this.sock != null && this.sock.isConnected()) {
+                this.sock.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 }

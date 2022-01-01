@@ -47,6 +47,11 @@ public class BlockingConnections<T> implements Connections<T>{
         }
     }
 
+    public synchronized boolean isConnected(int connectionId) {
+        return this.idToHandlerMap.containsKey(connectionId);
+    }
+
+
     public synchronized void disconnect(int connectionId) {
         this.idToHandlerMap.remove(connectionId);
     }    
