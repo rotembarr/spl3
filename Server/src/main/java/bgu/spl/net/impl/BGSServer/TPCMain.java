@@ -12,7 +12,7 @@ public class TPCMain {
     public static void main(String[] args) {
 
         // Create a map to all users.
-        Map<String, BGSStudent> usernamesToIdMap = new ConcurrentHashMap<String, BGSStudent>();
+        Map<String, BGSStudent> usernamesToStudentMap = new ConcurrentHashMap<String, BGSStudent>();
 
         if (args.length != 1) {
             System.out.println("Bad parameters passes. Usage <port> <Num of threads>");
@@ -20,7 +20,7 @@ public class TPCMain {
 
        Server.<BGSMessage>threadPerClient(
             Integer.parseInt(args[0]),
-            () -> new BGSProtocol(usernamesToIdMap), //protocol factory
+            () -> new BGSProtocol(usernamesToStudentMap), //protocol factory
             () -> new BGSEncoderDecoder() //message encoder decoder factory
        ).serve();
     }

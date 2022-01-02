@@ -210,13 +210,11 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
 
         // Send the post to all the follwers.
         Collection<BGSStudent> dstStudents = this.student.getFollowers();
-        synchronized (dstStudents) { // TODO
-            for (Iterator<BGSStudent> iter = dstStudents.iterator(); iter.hasNext(); ) {
-                BGSStudent dst = iter.next();
-                boolean success = this.connections.send(dst.getConnectionId(), notiMsg);
-                if (!success) {
-                    dst.backupNotification(notiMsg);
-                }
+        for (Iterator<BGSStudent> iter = dstStudents.iterator(); iter.hasNext(); ) {
+            BGSStudent dst = iter.next();
+            boolean success = this.connections.send(dst.getConnectionId(), notiMsg);
+            if (!success) {
+                dst.backupNotification(notiMsg);
             }
         }
 
@@ -369,5 +367,10 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
     @Override
     public boolean shouldTerminate() {
         return shouldTerminate;
+    }
+
+    // For test uses
+    public int getConnectionId() {
+        return this.connectionId;
     }
 }

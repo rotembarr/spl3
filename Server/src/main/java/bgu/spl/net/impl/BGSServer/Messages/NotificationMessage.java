@@ -33,7 +33,7 @@ public class NotificationMessage extends BGSMessage{
     }
 
     public String encode() {
-        return BGSMessage.opcodeToString(this.opcode) + this.type + this.postingUser + '\0' + this.content + '\0';
+        return BGSMessage.opcodeToString(this.opcode) + (char)this.type + this.postingUser + '\0' + this.content + '\0';
     }
 
     public String toString() {

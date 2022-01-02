@@ -37,23 +37,23 @@ public class BGSEncoderDecoder implements MessageEncoderDecoder<BGSMessage> {
             
             // Create message accordin to opcode.
             if (opcode == BGSMessage.Opcode.REGISTER) {
-                return new RegisterMessage(buffer);
+                return RegisterMessage.decode(buffer);
             } else if (opcode == BGSMessage.Opcode.LOGIN) {
-                return new LoginMessage(buffer);
+                return LoginMessage.decode(buffer);
             } else if (opcode == BGSMessage.Opcode.LOGOUT) {
-                return new LogoutMessage(buffer);
+                return LogoutMessage.decode(buffer);
             } else if (opcode == BGSMessage.Opcode.FOLLOW) {
-                return new FollowMessage(buffer);
+                return FollowMessage.decode(buffer);
             } else if (opcode == BGSMessage.Opcode.POST) {
-                return new PostMessage(buffer);
+                return PostMessage.decode(buffer);
             } else if (opcode == BGSMessage.Opcode.PM) {
-                return new PMMessage(buffer);
+                return PMMessage.decode(buffer);
             } else if (opcode == BGSMessage.Opcode.LOGSTAT) {
-                return new LogStatMessage(buffer);
+                return LogStatMessage.decode(buffer);
             } else if (opcode == BGSMessage.Opcode.STAT) {
-                return new StatMessage(buffer);
+                return StatMessage.decode(buffer);
             } else if (opcode == BGSMessage.Opcode.BLOCK) {
-                return new BlockMessage(buffer);
+                return BlockMessage.decode(buffer);
             } else {
                 System.out.println("Error parsing enc dec");
             }

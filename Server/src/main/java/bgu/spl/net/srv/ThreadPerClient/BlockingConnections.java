@@ -43,7 +43,7 @@ public class BlockingConnections<T> implements Connections<T>{
             return -1;
         } else {
             this.idToHandlerMap.put(this.connectionsCounter, handler);
-            return ++this.connectionsCounter;
+            return this.connectionsCounter++;
         }
     }
 

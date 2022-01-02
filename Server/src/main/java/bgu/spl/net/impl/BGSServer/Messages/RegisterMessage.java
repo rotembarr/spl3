@@ -17,12 +17,16 @@ public class RegisterMessage extends BGSMessage{
         return this.birthday;
     }
     
-    public RegisterMessage(String src) {
+    public RegisterMessage(String username, String password, String birthday) {
         super(BGSMessage.Opcode.REGISTER);
+        this.username = username;
+        this.password = password;
+        this.birthday = birthday;
+    }
+    
+    public static RegisterMessage decode(String src) {
         String[] parts = src.split("\0");
-        this.username = parts[0];
-        this.password = parts[1];
-        this.birthday = parts[2];
+        return new RegisterMessage(parts[0], parts[1], parts[2]);
     }
 
     public String encode() {

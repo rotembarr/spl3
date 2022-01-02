@@ -96,7 +96,7 @@ public class MessagesTest {
     @Test
     public void testRegisterParsing() {
         String s = "aaa" + '\0' + "bbb" + '\0' + "ccc" + '\0';
-        RegisterMessage msg = new RegisterMessage(s);
+        RegisterMessage msg = RegisterMessage.decode(s);
         assertEquals("aaa", msg.getUsername());
         assertEquals("bbb", msg.getPassword());
         assertEquals("ccc", msg.getBirthday());
@@ -106,7 +106,7 @@ public class MessagesTest {
     public void testloginParsing() {
         byte[] charset = {7};
         String s = "aaa" + '\0' + "bbb" + '\0' + new String(charset, StandardCharsets.UTF_8);
-        LoginMessage msg = new LoginMessage(s);
+        LoginMessage msg = LoginMessage.decode(s);
         assertEquals("aaa", msg.getUsername());
         assertEquals("bbb", msg.getPassword());
         assertEquals(7, msg.getCaptcha());
@@ -117,7 +117,7 @@ public class MessagesTest {
     public void testFollowParsing() {
         byte[] follow = {1};
         String s = new String(follow, StandardCharsets.UTF_8) +  "aaa" + '\0';
-        FollowMessage msg = new FollowMessage(s);
+        FollowMessage msg = FollowMessage.decode(s);
         assertEquals(1, msg.getFollow());
         assertEquals("aaa", msg.getUsername());
     }

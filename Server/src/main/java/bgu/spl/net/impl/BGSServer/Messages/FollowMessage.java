@@ -1,10 +1,10 @@
 package bgu.spl.net.impl.BGSServer.Messages;
 
 public class FollowMessage extends BGSMessage {
-    private final char follow;
+    private final byte follow;
     private final String username;
 
-    public char getFollow() {
+    public byte getFollow() {
         return this.follow;
     }
 
@@ -12,14 +12,18 @@ public class FollowMessage extends BGSMessage {
         return this.username;
     }
 
-    public FollowMessage(String src) {
+    public FollowMessage(byte follow, String username) {
         super(BGSMessage.Opcode.FOLLOW);
-        this.follow = src.charAt(0);
-        this.username = src.substring(1, src.length()-1);
+        this.follow = follow;
+        this.username = username;
+    }
+    
+    public static FollowMessage decode(String src) {
+        return new FollowMessage((byte)src.charAt(0), src.substring(1, src.length()-1));
     }
 
     public String encode() {
-        return BGSMessage.opcodeToString(this.opcode) + (byte)this.follow + this.username + '\0';
+        return BGSMessage.opcodeToString(this.opcode) + (char)this.follow + this.username + '\0';
     }
     
     public String toString() {

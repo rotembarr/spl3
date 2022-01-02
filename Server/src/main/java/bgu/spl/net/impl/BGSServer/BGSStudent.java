@@ -32,7 +32,7 @@ public class BGSStudent {
         this.username = username;
         this.password = password;
         this.birthday = birthday;
-        this.connectionId.set(-1);
+        this.connectionId  = new AtomicInteger(-1);
         this.following = new LinkedList<BGSStudent>();
         this.followers = new ConcurrentLinkedDeque<BGSStudent>();
         this.blocked = new ConcurrentLinkedDeque<BGSStudent>();

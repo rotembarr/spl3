@@ -7,9 +7,13 @@ public class BlockMessage extends BGSMessage {
         return this.username;
     }
 
-    public BlockMessage(String src) {
+    public BlockMessage(String username) {
         super(BGSMessage.Opcode.FOLLOW);
-        this.username = src.substring(0, src.length()-1);
+        this.username = username;
+    }
+
+    public static BlockMessage decode(String src) {
+        return new BlockMessage(src.substring(0, src.length()-1));
     }
 
     public String encode() {

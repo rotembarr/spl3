@@ -12,6 +12,15 @@ public class ErrorMessage extends BGSMessage{
         this.messageOpcode = messageOpcode;
     }
 
+    public boolean equals(Object other) {
+        if (other instanceof ErrorMessage) {
+            return (this.opcode == ((ErrorMessage)other).opcode) && (this.messageOpcode == ((ErrorMessage)other).messageOpcode);
+        } else {
+            return false;
+        }
+    }
+
+
     public String encode() {
         return "Error(" + this.hashCode() + "): " + BGSMessage.opcodeToString(this.opcode) + BGSMessage.opcodeToString(this.messageOpcode);
     }

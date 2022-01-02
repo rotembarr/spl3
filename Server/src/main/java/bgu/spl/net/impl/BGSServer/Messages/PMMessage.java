@@ -22,12 +22,17 @@ public class PMMessage extends BGSMessage{
     public void filter() {
         this.content = Filter.filter(this.content);
     }
-    public PMMessage(String src) {
+
+    public PMMessage(String username, String content, String sendingDateAndTime) {
         super(BGSMessage.Opcode.PM);
-        String[] parts = src.split("\0");
-        this.username = parts[0];
-        this.content = parts[1];
-        this.sendingDateAndTime = parts[2];
+        this.username = username;
+        this.content = content;
+        this.sendingDateAndTime = sendingDateAndTime;
+    }
+    
+    public static PMMessage decode(String src) {
+        String[] parts = src.split("\0"); 
+        return new PMMessage(parts[0], parts[1], parts[2]);
     }
 
     public String encode() {

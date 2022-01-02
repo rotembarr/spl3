@@ -52,6 +52,7 @@ public class BGSEncDecTest {
         assertEquals(content, castmsg.getContent());
         assertEquals(dateandtime, castmsg.getSendingDateAndTime());
     }
+
 }
 
 

@@ -7,9 +7,13 @@ public class PostMessage extends BGSMessage{
         return this.content;
     }
     
-    public PostMessage(String src) {
+    public PostMessage(String content) {
         super(BGSMessage.Opcode.POST);
-        this.content = src.substring(0, src.length()-1);
+        this.content = content;
+    }
+
+    public static PostMessage decode(String src) {
+        return new PostMessage(src.substring(0, src.length()-1));
     }
 
     public String encode() {

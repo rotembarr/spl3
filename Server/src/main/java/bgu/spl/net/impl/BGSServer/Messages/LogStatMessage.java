@@ -2,8 +2,12 @@ package bgu.spl.net.impl.BGSServer.Messages;
 
 public class LogStatMessage extends BGSMessage{
     
-    public LogStatMessage(String src) {
+    public LogStatMessage() {
         super(BGSMessage.Opcode.LOGSTAT);
+    }
+
+    public static LogStatMessage decode(String src) {
+        return new LogStatMessage();
     }
 
     public String encode() {

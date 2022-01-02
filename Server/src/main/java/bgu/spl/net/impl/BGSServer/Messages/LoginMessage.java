@@ -17,12 +17,16 @@ public class LoginMessage extends BGSMessage{
         return this.captcha;
     }
     
-    public LoginMessage(String src) {
+    public LoginMessage(String username, String password, byte captcha) {
         super(BGSMessage.Opcode.LOGIN);
+        this.username = username;
+        this.password = password;
+        this.captcha = captcha;
+    }
+    
+    public static LoginMessage decode(String src) {
         String[] parts = src.split("\0");
-        this.username = parts[0];
-        this.password = parts[1];
-        this.captcha = (byte)parts[2].charAt(0);
+        return new LoginMessage(parts[0], parts[1], (byte)parts[2].charAt(0));
     }
 
     public String encode() {

@@ -11,14 +11,20 @@ public class StatMessage extends BGSMessage{
         return this.usernames;
     }
 
-    public StatMessage(String src) {
+    public StatMessage(List<String> usernames) {
         super(BGSMessage.Opcode.STAT);
+        this.usernames = usernames;
+    }
+    
+    public static StatMessage decode(String src) {
         String[] names = src.substring(0, src.length()-1).split("|");
-
-        this.usernames = new LinkedList<String>();
+    
+        List<String> usernames = new LinkedList<String>();
         for (int i = 0; i < names.length; i++) {
-            this.usernames.add(names[i]);
+            usernames.add(names[i]);
         }
+
+        return new StatMessage(usernames);
     }
 
     private String concatenateUsers() {
