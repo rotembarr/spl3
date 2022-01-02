@@ -1,16 +1,25 @@
+#include "ReadTask.h"
 #include <stdlib.h>
-#include <connectionHandler.h>
+#include <thread>
+#include <mutex>
+#include <ConnectionHandler.h>
 
-void shortToBytes(short num, char* bytesArr)
-{
-    bytesArr[0] = ((num >> 8) & 0xFF);
-    bytesArr[1] = (num & 0xFF);
-}
 
 /**
 * This code assumes that the server replies the exact text the client sent it (as opposed to the practical session example)
 */
+
+
+std::string shortToString2(short num) {
+    std::string s = "";
+    s = s + (char)(num & 0xFF);
+    s = (char)((num >> 8) & 0xFF);
+}
+
 int main (int argc, char *argv[]) {
+    // std::cout << shortToString2((short)49) << std::endl;
+    // return 0;
+
     if (argc < 3) {
         std::cerr << "Usage: " << argv[0] << " host port" << std::endl << std::endl;
         return -1;
@@ -23,30 +32,13 @@ int main (int argc, char *argv[]) {
         std::cerr << "Cannot connect to " << host << ":" << port << std::endl;
         return 1;
     }
-	
-	//From here we will see the rest of the ehco client implementation:
-    while (1) {
-        const short bufsize = 1024;
-        char buf[bufsize];
-        std::cin.getline(buf, bufsize);
-		std::string line(buf);
-		int len=line.length();
-        
-        short opcode = 7;
-        char* opstr = new char[2];
-        shortToBytes(opcode, opstr);
-        std::cout << opstr << std::endl;
-        return 0;
-        line = opstr + line + '\0';
-        std::cout << line << std::endl;
-        if (!connectionHandler.sendLine(line)) {
-            std::cout << "Disconnected. Exiting...\n" << std::endl;
-            break;
-        }
-    
-		// // connectionHandler.sendLine(line) appends '\n' to the message. Therefor we send len+1 bytes.
-        // std::cout << "Sent " << len+1 << " bytes to server" << std::endl;
 
+    ReadTask readTask(connectionHandler);
+    std::thread readThread(&ReadTask::operator(), &readTask);
+    readThread.join();
+
+	//From here we will see the rest of the ehco client implementation:
+    
  
         // // We can use one of three options to read data from the server:
         // // 1. Read a fixed number of characters
@@ -69,6 +61,5 @@ int main (int argc, char *argv[]) {
         //     std::cout << "Exiting...\n" << std::endl;
         //     break;
         // }
-    }
     return 0;
 }

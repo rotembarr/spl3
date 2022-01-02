@@ -1,17 +1,21 @@
 CFLAGS:=-c -Wall -Weffc++ -g -std=c++11 -Iinclude
 LDFLAGS:=-lboost_system -lboost_thread -lpthread
 
-all: EchoClient
-	g++ -o bin/echoExample bin/connectionHandler.o bin/echoClient.o $(LDFLAGS)
+all: BGSclient
+	g++ -o bin/BGSclient bin/ConnectionHandler.o bin/ReadTask.o bin/BGSclient.o $(LDFLAGS)
 
-EchoClient: bin/connectionHandler.o bin/echoClient.o
+BGSclient: bin/ConnectionHandler.o bin/ReadTask.o bin/BGSclient.o
 	
-bin/connectionHandler.o: src/connectionHandler.cpp
-	g++ $(CFLAGS) -o bin/connectionHandler.o src/connectionHandler.cpp
+bin/ConnectionHandler.o: src/ConnectionHandler.cpp
+	g++ $(CFLAGS) -o bin/ConnectionHandler.o src/ConnectionHandler.cpp
 
-bin/echoClient.o: src/echoClient.cpp
-	g++ $(CFLAGS) -o bin/echoClient.o src/echoClient.cpp
-	
+bin/BGSclient.o: src/BGSclient.cpp
+	g++ $(CFLAGS) -o bin/BGSclient.o src/BGSclient.cpp
+
+bin/ReadTask.o: src/ReadTask.cpp
+	g++ $(CFLAGS) -o bin/ReadTask.o src/ReadTask.cpp
+
+
 .PHONY: clean
 clean:
 	rm -f bin/*

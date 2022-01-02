@@ -15,14 +15,16 @@ public class TPCMain {
         Map<String, BGSStudent> usernamesToStudentMap = new ConcurrentHashMap<String, BGSStudent>();
 
         if (args.length != 1) {
-            System.out.println("Bad parameters passes. Usage <port> <Num of threads>");
+            System.out.println("Bad parameters passes. Usage <port>");
+            return;
         }
-
-       Server.<BGSMessage>threadPerClient(
+        
+        Server.<BGSMessage>threadPerClient(
             Integer.parseInt(args[0]),
             () -> new BGSProtocol(usernamesToStudentMap), //protocol factory
             () -> new BGSEncoderDecoder() //message encoder decoder factory
-       ).serve();
+            ).serve();
+        System.out.println("Finished");
     }
 }
 
