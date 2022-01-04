@@ -8,7 +8,7 @@ public class ErrorMessage extends BGSMessage{
     }
 
     public ErrorMessage(BGSMessage.Opcode messageOpcode) {
-        super(BGSMessage.Opcode.ACK);
+        super(BGSMessage.Opcode.ERROR);
         this.messageOpcode = messageOpcode;
     }
 
@@ -22,6 +22,10 @@ public class ErrorMessage extends BGSMessage{
 
 
     public String encode() {
+        return BGSMessage.opcodeToString(this.opcode) + BGSMessage.opcodeToString(this.messageOpcode);
+    }
+    
+    public String toString() {
         return "Error(" + this.hashCode() + "): " + BGSMessage.opcodeToString(this.opcode) + BGSMessage.opcodeToString(this.messageOpcode);
     }
 

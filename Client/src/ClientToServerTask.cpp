@@ -1,31 +1,22 @@
-#include <ReadTask.h>
-
-void shortToBytes(short num, char* bytesArr)
-{
-    bytesArr[1] = ((num >> 8) & 0xFF);
-    bytesArr[2] = (num & 0xFF);
-}
+#include <ClientToServerTask.h>
 
 std::string shortToString(short num) {
     std::string s = "";
     s = (char)((num >> 8) & 0xFF);
-    s = s + (char)(num & 0xFF);
-
+    s += (char)(num & 0xFF);
+    return s;
 }
 
-ReadTask::ReadTask(ConnectionHandler& _connectionHandler) :
+ClientToServerTask::ClientToServerTask(ConnectionHandler& _connectionHandler) :
     connectionHandler(_connectionHandler) {
 }
 
-ReadTask::~ReadTask() {
-}
-
-void ReadTask::operator()() {
+void ClientToServerTask::operator()() {
 
     while (1) {
         // Variables.
         std::vector<std::string> command;
-        std::string line;
+        std::string line = "";
 
         // Get user command.
         std::getline(std::cin, line);
@@ -38,11 +29,13 @@ void ReadTask::operator()() {
         }
 
         // Send msg to server.
-        std::string msg;
+        std::string msg = "";
         if (command[0].compare("REGISTER") == 0) {
+            std::cout << "a" << std::endl;
             msg = shortToString(1) + command[1] + '\0' + command[2] + '\0' + command[3] + '\0';
             
         } else if (command[0].compare("LOGIN") == 0) {
+            std::cout << "b" << std::endl;
             msg = shortToString(2) + command[1] + '\0' + command[2] + '\0' + (char)1;
 
         } else if (command[0].compare("LOGOUT") == 0) {
@@ -78,11 +71,11 @@ void ReadTask::operator()() {
         } else if (command[0].compare("BLOCK") == 0) {
             msg = shortToString(12) + command[1] + '\0';
         } else {
-            std::cout << "asas" <<std::endl;
+            std::cout << "Wromg command given: " + line << std::endl;
         }
 
         // Error madafakkaaa.
-        if (!this->connectionHandler.sendLine(line)) {
+        if (!this->connectionHandler.sendLine(msg)) {
             std::cout << "Disconnected. Exiting...\n" << std::endl;
             break;
         }

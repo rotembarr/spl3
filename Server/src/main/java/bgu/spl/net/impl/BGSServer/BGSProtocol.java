@@ -129,8 +129,9 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
     
             // If login aproval, set his connectionId and open him to conversation.
             // No need to synchronize this because this is the only thread anyone can change this student.
-            mapedStudent.setConnectionId(this.connectionId);        
+            mapedStudent.setConnectionId(this.connectionId);
             this.student = mapedStudent;
+            this.sendAck(BGSMessage.Opcode.LOGIN, "");
         }
     }
 

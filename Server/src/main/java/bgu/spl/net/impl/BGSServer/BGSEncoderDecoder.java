@@ -32,9 +32,16 @@ public class BGSEncoderDecoder implements MessageEncoderDecoder<BGSMessage> {
 
             // Parse input message from decimal to UTF-8.
             String buffer = new String(Arrays.copyOfRange(this.bytes, 0, len), StandardCharsets.UTF_8);
+            String s = buffer.substring(0,2);
+
+            System.out.println((int)s.charAt(1));
+
             BGSMessage.Opcode opcode = BGSMessage.stringToOpcode(buffer.substring(0,2));
             buffer = buffer.substring(2); // Remove opcode
             
+            // Finish msg (before returning a msg).
+            this.len = 0;
+
             // Create message accordin to opcode.
             if (opcode == BGSMessage.Opcode.REGISTER) {
                 return RegisterMessage.decode(buffer);
@@ -57,6 +64,7 @@ public class BGSEncoderDecoder implements MessageEncoderDecoder<BGSMessage> {
             } else {
                 System.out.println("Error parsing enc dec");
             }
+
         }
 
         pushByte(nextByte);

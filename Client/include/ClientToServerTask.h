@@ -1,17 +1,16 @@
-#ifndef READ_TASK
-#define READ_TASK
+#ifndef CLIENT_TO_SERVER_TASK
+#define CLIENT_TO_SERVER_TASK
 
 #include <stdlib.h>
 #include <ctime>
 #include "ConnectionHandler.h"
 
-class ReadTask {
+class ClientToServerTask {
 private: 
     ConnectionHandler& connectionHandler;
 
 public:   
-    ReadTask(ConnectionHandler& _connectionHandler);
-    virtual ~ReadTask();
+    ClientToServerTask(ConnectionHandler& _connectionHandler);
     void operator()();
 };
 

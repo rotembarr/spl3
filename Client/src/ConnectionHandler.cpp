@@ -85,7 +85,9 @@ bool ConnectionHandler::getFrameAscii(std::string& frame, char delimiter) {
     try {
 		do{
 			getBytes(&ch, 1);
-            frame.append(1, ch);
+            if (ch != delimiter) {
+                frame.append(1, ch);
+            }
         } while (delimiter != ch);
     } catch (std::exception& e) {
         std::cerr << "recv failed (Error: " << e.what() << ')' << std::endl;
@@ -94,10 +96,9 @@ bool ConnectionHandler::getFrameAscii(std::string& frame, char delimiter) {
     return true;
 }
  
-bool ConnectionHandler::sendFrameAscii(const std::string& frame, char delimiter) {
-	bool result=sendBytes(frame.c_str(),frame.length());
-	if(!result) return false;
-	return sendBytes(&delimiter,1);
+bool ConnectionHandler::sendFrameAscii(std::string& frame, char delimiter) {
+    frame += delimiter;
+	return sendBytes(frame.c_str(),frame.length());
 }
  
 // Close down the connection properly.
