@@ -143,13 +143,14 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
         } else {
 
             // Make this student unconnected.
-            // No need to synchronize this because this is the only thread anyone can change this student.
-            this.connections.disconnect(this.connectionId);
             this.student.setConnectionId(-1);
             this.student = null;
-
+            
             // After this ack sent, the client will close the connection, and this protocol will die.
             this.sendAck(BGSMessage.Opcode.LOGOUT, "");
+            
+            // No need to synchronize this because this is the only thread anyone can change this student.
+            this.connections.disconnect(this.connectionId);
         }
     }
 
@@ -164,6 +165,12 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
         // If the target student isn't exists.
         BGSStudent otherStudent = this.usernamesToStudentMap.get(msg.getUsername());
         if (otherStudent == null) {
+            this.sendError(BGSMessage.Opcode.FOLLOW);
+            return;
+        }
+        
+        // If follow after ourselves.
+        if (otherStudent == this.student) {
             this.sendError(BGSMessage.Opcode.FOLLOW);
             return;
         }
@@ -192,7 +199,9 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
             // Unfollow.
             this.student.unfollow(otherStudent);
         } else {
-            System.out.println("Error in follow message");
+            System.out.println("Error in parsing follow message");
+            this.sendError(BGSMessage.Opcode.FOLLOW);
+            return;
         }
 
         this.sendAck(BGSMessage.Opcode.FOLLOW, msg.getUsername() + '\0');

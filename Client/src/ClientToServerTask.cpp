@@ -31,11 +31,9 @@ void ClientToServerTask::operator()() {
         // Send msg to server.
         std::string msg = "";
         if (command[0].compare("REGISTER") == 0) {
-            std::cout << "a" << std::endl;
             msg = shortToString(1) + command[1] + '\0' + command[2] + '\0' + command[3] + '\0';
             
         } else if (command[0].compare("LOGIN") == 0) {
-            std::cout << "b" << std::endl;
             msg = shortToString(2) + command[1] + '\0' + command[2] + '\0' + (char)1;
 
         } else if (command[0].compare("LOGOUT") == 0) {
@@ -43,15 +41,14 @@ void ClientToServerTask::operator()() {
 
         } else if (command[0].compare("FOLLOW") == 0) {
             int f = 0;
-            if (command[0].compare("0")) {
+            if (command[1].compare("0") == 0) {
                 f = 0;
-            } else if (command[0].compare("1")) {
+            } else if (command[1].compare("1") == 0) {
                 f = 1;
             } else {
-                std::cout << "bad argument" << std::endl;
+                std::cout << "Bad argument" << std::endl;
             }
-            msg = shortToString(4) + (char)f + command[2];
-
+            msg = shortToString(4) + (char)f + command[2] + '\0';
 
         } else if (command[0].compare("POST") == 0) {
             msg = shortToString(5) + command[1] + '\0';

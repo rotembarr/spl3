@@ -44,13 +44,12 @@ public class MessagesTest {
         serverThread.start();
 
         try {
-            Thread.currentThread().sleep(10);
+            Thread.sleep(10);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
 
-        try {
-            Socket socket = new Socket("10.0.2.15", 7777);
+        try (Socket socket = new Socket("10.0.2.15", 7777)) {
             Thread readThread = new Thread() {
                 @Override
                 public void run() {
@@ -70,7 +69,7 @@ public class MessagesTest {
                 public void run() {
                     try {
                         BufferedOutputStream out = new BufferedOutputStream(socket.getOutputStream());
-                        Thread.currentThread().sleep(10);
+                        Thread.sleep(10);
                         byte[] b = "a".getBytes();
                         out.write(b);
                         out.flush();

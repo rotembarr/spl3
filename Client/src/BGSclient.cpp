@@ -41,5 +41,6 @@ int main (int argc, char *argv[]) {
     //////// Finishing the program ////////
     // Wait for ack msg from logout.
     serverToClientThread.join();
+    std::cout << "main" << std::endl;
     return 0;
 }

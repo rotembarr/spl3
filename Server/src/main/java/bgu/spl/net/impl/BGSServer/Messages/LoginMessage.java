@@ -26,7 +26,7 @@ public class LoginMessage extends BGSMessage{
     
     public static LoginMessage decode(String src) {
         String[] parts = src.split("\0");
-        return new LoginMessage(parts[0], parts[1], (byte)parts[2].charAt(0));
+        return new LoginMessage(parts[0], parts[1], (byte)src.charAt(src.length()-1));
     }
 
     public String encode() {
