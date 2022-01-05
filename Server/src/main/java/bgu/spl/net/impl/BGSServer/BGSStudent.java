@@ -21,7 +21,7 @@ public class BGSStudent {
     private AtomicInteger connectionId; // one thread will write but multiple reads.
     private List<BGSStudent> following; // one thread read and write.
     private Collection<BGSStudent> followers; // multiple therad write and one read.
-    private Collection<BGSStudent> blocked; // multiple therad write and one read.
+    private Collection<BGSStudent> blockedStudents; // multiple therad write and one read.
     private Queue<NotificationMessage> backupNotifications; // multiple therad write and one read.
 
     // Statistics (can be accessed from multiple threads).
@@ -36,7 +36,7 @@ public class BGSStudent {
         this.connectionId  = new AtomicInteger(-1);
         this.following = new LinkedList<BGSStudent>();
         this.followers = new ConcurrentLinkedDeque<BGSStudent>();
-        this.blocked = new ConcurrentLinkedDeque<BGSStudent>();
+        this.blockedStudents = new ConcurrentLinkedDeque<BGSStudent>();
         this.posts = new ConcurrentLinkedDeque<PostMessage>();
         this.pms = new ConcurrentLinkedDeque<PMMessage>();
         this.backupNotifications = new ConcurrentLinkedDeque<NotificationMessage>(); 
@@ -85,40 +85,40 @@ public class BGSStudent {
         return this.followers;
     }
 
-    public boolean isFollowing(BGSStudent student) {
-        return this.following.contains(student);
+    public boolean isFollowing(BGSStudent other) {
+        return this.following.contains(other);
     }
 
 
     // Logic functions.
-    public boolean follow(BGSStudent studentToFollow) {
+    public boolean follow(BGSStudent other) {
         
-        // Dont add blocked users.
-        if (this.blocked.contains(studentToFollow)) {
+        // Dont add blockedStudents users.
+        if (this.blockedStudents.contains(other)) {
             return false;
         } 
 
         // Add followers to other.
-        if (!studentToFollow.addFollower(this)) {
+        if (!other.addFollower(this)) {
             return false;
         }
 
         // Only in success of the above.
-        return this.following.add(studentToFollow);
+        return this.following.add(other);
     }
 
-    protected boolean addFollower(BGSStudent student) {
+    protected boolean addFollower(BGSStudent other) {
         
-        // Dont add blocked users.
-        if (this.blocked.contains(student)) {
+        // Dont add blockedStudents users.
+        if (this.blockedStudents.contains(other)) {
             return false;
         } 
 
-        return this.followers.add(student);
+        return this.followers.add(other);
     }
 
-    protected boolean reomoveFollower(BGSStudent student) {        
-        return this.followers.remove(student);
+    protected boolean reomoveFollower(BGSStudent other) {        
+        return this.followers.remove(other);
     }
 
     public boolean unfollow(BGSStudent studentToUnfollow) {
@@ -147,21 +147,18 @@ public class BGSStudent {
         return this.backupNotifications.poll();
     }
 
-    public boolean isBlocking(BGSStudent student) {
-        return this.blocked.contains(student);
+    public boolean isBlocking(BGSStudent other) {
+        return this.blockedStudents.contains(other);
     }
 
-    public void block(BGSStudent student) {
-        // Delete msgs from 'student'
-        for (Iterator<NotificationMessage> iter = this.backupNotifications.iterator(); iter.hasNext(); ) {
-            NotificationMessage msg = iter.next();
-            if (msg.getPostingUser().equals(student.getUsername())) {
-                iter.remove();
-            }
-        }
+    public void block(BGSStudent other) {
+        // Attention: No need to delete backup msgs from 'other'
 
+        // Add other to blockedStudent
+        this.blockedStudents.add(other);
+        
         // Unfollow each other.
-        this.unfollow(student);
-        student.unfollow(this);
+        this.unfollow(other);
+        other.unfollow(this);
     }
 }

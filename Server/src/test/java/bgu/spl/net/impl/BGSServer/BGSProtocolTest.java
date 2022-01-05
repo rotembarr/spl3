@@ -1,6 +1,7 @@
 package bgu.spl.net.impl.BGSServer;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Collection;
@@ -16,6 +17,7 @@ import org.junit.Test;
 import bgu.spl.net.api.bidi.Connections;
 import bgu.spl.net.impl.BGSServer.Messages.AckMessage;
 import bgu.spl.net.impl.BGSServer.Messages.BGSMessage;
+import bgu.spl.net.impl.BGSServer.Messages.BlockMessage;
 import bgu.spl.net.impl.BGSServer.Messages.ErrorMessage;
 import bgu.spl.net.impl.BGSServer.Messages.FollowMessage;
 import bgu.spl.net.impl.BGSServer.Messages.LoginMessage;
@@ -352,13 +354,13 @@ public class BGSProtocolTest {
         BGSProtocol protocol3 = this.createProtocol();
         BGSProtocol protocol4 = this.createProtocol();
 
+        ////////// Register
         // Mor register should success
         RegisterMessage msg1 = new RegisterMessage("Mor", "123 ", "29-12-1997");
         connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.REGISTER, ""));
         protocol1.process(msg1);
         assertEquals(1, this.usernamesToStudentMap.size());
 
-        ////////// Register
         // Rotem register should success
         RegisterMessage msg2 = new RegisterMessage("Rotem", "123 ", "29-12-1997");
         connections.expectSend(protocol2.getConnectionId(), new AckMessage(Opcode.REGISTER, ""));
@@ -441,6 +443,152 @@ public class BGSProtocolTest {
         connections.expectSend(protocol4.getConnectionId(), new NotificationMessage((byte)0, "Rotem", "PM 4!! <filtered> 12-12-1212"));
         protocol4.process(msg10);
         
+        assertTrue("message left in connection", this.connections.checkAllClear());
+    }
+
+    @Test
+    public void testBlock1() {
+        BGSProtocol protocol1 = this.createProtocol();
+        BGSProtocol protocol2 = this.createProtocol();
+        BGSProtocol protocol3 = this.createProtocol();
+        BGSProtocol protocol4 = this.createProtocol();
+
+        ////////// Register
+        // Mor register should success
+        RegisterMessage msg1 = new RegisterMessage("Mor", "123 ", "29-12-1997");
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.REGISTER, ""));
+        protocol1.process(msg1);
+        assertEquals(1, this.usernamesToStudentMap.size());
+
+        // Rotem register should success
+        RegisterMessage msg2 = new RegisterMessage("Rotem", "123 ", "29-12-1997");
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.REGISTER, ""));
+        protocol1.process(msg2);
+        assertEquals(2, this.usernamesToStudentMap.size());
+
+        // Shay register should success
+        RegisterMessage msg3 = new RegisterMessage("Shay", "123 ", "29-12-1997");
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.REGISTER, ""));
+        protocol1.process(msg3);
+        assertEquals(3, this.usernamesToStudentMap.size());
+
+        // Shay register should success
+        RegisterMessage msg4 = new RegisterMessage("Gaya", "123 ", "29-12-1997");
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.REGISTER, ""));
+        protocol1.process(msg4);
+        assertEquals(4, this.usernamesToStudentMap.size());
+
+        //////// Students.
+        BGSStudent mor = this.usernamesToStudentMap.get("Mor");
+        BGSStudent rotem = this.usernamesToStudentMap.get("Rotem");
+        BGSStudent shay = this.usernamesToStudentMap.get("Shay");
+
+        //////// Login
+        // Mor login should success
+        LoginMessage msg5 = new LoginMessage("Mor", "123 ", (byte)1);
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.LOGIN, ""));
+        protocol1.process(msg5);
+
+        // Rotem login should success
+        LoginMessage msg6 = new LoginMessage("Rotem", "123 ", (byte)1);
+        connections.expectSend(protocol2.getConnectionId(), new AckMessage(Opcode.LOGIN, ""));
+        protocol2.process(msg6);
+        
+        // Shay login should success
+        LoginMessage msg7 = new LoginMessage("Shay", "123 ", (byte)1);
+        connections.expectSend(protocol3.getConnectionId(), new AckMessage(Opcode.LOGIN, ""));
+        protocol3.process(msg7);
+
+        // Gaya login should success
+        LoginMessage msg8 = new LoginMessage("Gaya", "123 ", (byte)1);
+        connections.expectSend(protocol4.getConnectionId(), new AckMessage(Opcode.LOGIN, ""));
+        protocol4.process(msg8);
+
+        //////// Follow
+        // Mor follow Gaya should success
+        FollowMessage msg9= new FollowMessage((byte) 0, "Gaya");
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.FOLLOW, "Gaya" + '\0'));
+        protocol1.process(msg9);
+
+        // Mor follow Rotem should success
+        FollowMessage msg10= new FollowMessage((byte) 0, "Rotem");
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.FOLLOW, "Rotem" + '\0'));
+        protocol1.process(msg10);
+        assertTrue("mor not following rotem", mor.isFollowing(rotem));
+        
+        // Rotem follow Mor should success
+        FollowMessage msg11= new FollowMessage((byte) 0, "Mor");
+        connections.expectSend(protocol2.getConnectionId(), new AckMessage(Opcode.FOLLOW, "Mor" + '\0'));
+        protocol2.process(msg11);
+        assertTrue("rotem not following mor", rotem.isFollowing(mor));
+        
+        // Rotem follow Shay should success
+        FollowMessage msg12= new FollowMessage((byte) 0, "Shay");
+        connections.expectSend(protocol2.getConnectionId(), new AckMessage(Opcode.FOLLOW, "Shay" + '\0'));
+        protocol2.process(msg12);
+        assertTrue("rotem not following shay", rotem.isFollowing(shay));
+        
+        // Shay follow Gaya should success
+        FollowMessage msg13= new FollowMessage((byte) 0, "Gaya");
+        connections.expectSend(protocol3.getConnectionId(), new AckMessage(Opcode.FOLLOW, "Gaya" + '\0'));
+        protocol3.process(msg13);
+
+        // Gaya follow Mor should success
+        FollowMessage msg14= new FollowMessage((byte) 0, "Mor");
+        connections.expectSend(protocol3.getConnectionId(), new AckMessage(Opcode.FOLLOW, "Mor" + '\0'));
+        protocol3.process(msg14);
+        
+        //////// Block
+        // Mor block blabla should fail.
+        BlockMessage msg15 = new BlockMessage("blabla");
+        connections.expectSend(protocol1.getConnectionId(), new ErrorMessage(Opcode.BLOCK));
+        protocol1.process(msg15);
+        
+        // Mor block Rotem should success
+        BlockMessage msg16 = new BlockMessage("Rotem");
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.BLOCK, ""));
+        protocol1.process(msg16);
+        assertFalse("rotem following mor", rotem.isFollowing(mor));
+        assertFalse("mor following rotem", mor.isFollowing(rotem));
+        assertFalse("rotem blocking mor", rotem.isBlocking(mor));
+        assertTrue("mor not blocking rotem", mor.isBlocking(rotem));
+
+        // Mor PM Rotem should Fail
+        PMMessage msg17 = new PMMessage("Rotem", "PM 0!!", "12-12-1212");
+        connections.expectSend(protocol1.getConnectionId(), new ErrorMessage(Opcode.PM));
+        protocol1.process(msg17);
+        
+        // Rotem PM Mor should Fail
+        PMMessage msg18 = new PMMessage("Mor", "PM 0!!", "12-12-1212");
+        connections.expectSend(protocol2.getConnectionId(), new ErrorMessage(Opcode.PM));
+        protocol2.process(msg18);
+
+        // Rotem Log with Mor should return data wthout Mor
+        
+        // Mor block Shay should success
+        BlockMessage msg19 = new BlockMessage("Shay");
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.BLOCK, ""));
+        protocol1.process(msg19);
+        assertFalse("shay following mor", shay.isFollowing(mor));
+        assertFalse("mor following shay", mor.isFollowing(shay));
+        assertFalse("shay blocking mor", shay.isBlocking(mor));
+        assertTrue("mor not blocking shay", mor.isBlocking(shay));
+        
+        // Shay follow Mor should Fail
+        FollowMessage msg20 = new FollowMessage((byte) 0, "Mor");        
+        connections.expectSend(protocol3.getConnectionId(), new ErrorMessage(Opcode.FOLLOW));
+        protocol3.process(msg20);
+
+        // Rotem follow Mor should Fail
+        FollowMessage msg21 = new FollowMessage((byte) 0, "Mor"); 
+        connections.expectSend(protocol1.getConnectionId(), new ErrorMessage(Opcode.FOLLOW));
+        protocol1.process(msg21);
+
+        // Shay LogStat shouldn't contain Mor.
+        // Rotem LogStat shouldn't contain Mor.
+        // Mor LogStat shouldn't contain Rotem and shay.
+        // Mor Log shouldn't contain Rotem and shay.
+
         assertTrue("message left in connection", this.connections.checkAllClear());
     }
 }

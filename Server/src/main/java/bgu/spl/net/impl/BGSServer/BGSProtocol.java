@@ -186,6 +186,12 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
             this.sendError(BGSMessage.Opcode.FOLLOW);
             return;
         }
+
+        // If one of us blocking the other
+        if (this.student.isBlocking(otherStudent) || otherStudent.isBlocking(this.student)) {
+            this.sendError(BGSMessage.Opcode.FOLLOW);
+            return;
+        }
         
         // 0 for follow
         if (msg.getFollow() == 0) {
@@ -273,7 +279,7 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
             return;
         } 
 
-        // TODO - this is my add
+        // Can't send PM to blockes users
         if (dst.isBlocking(this.student) || this.student.isBlocking(dst)) {
             this.sendError(BGSMessage.Opcode.PM);
             return;
@@ -308,14 +314,16 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
         } 
 
         // Create ack msg content.
-        String content = ""; // TODO - handle block
+        String content = ""; 
         Collection<BGSStudent> students = this.usernamesToStudentMap.values();
         for (Iterator<BGSStudent> iter =students.iterator(); iter.hasNext(); ) {
             BGSStudent currentStudent = iter.next();
-            content += new String(BGSMessage.shortToBytes((short)currentStudent.getAge()), StandardCharsets.UTF_8);
-            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfPosts()), StandardCharsets.UTF_8);
-            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowers()), StandardCharsets.UTF_8);
-            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowing()), StandardCharsets.UTF_8);
+            if (!this.student.isBlocking(currentStudent) && !currentStudent.isBlocking(this.student)) {
+                content += new String(BGSMessage.shortToBytes((short)currentStudent.getAge()), StandardCharsets.UTF_8);
+                content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfPosts()), StandardCharsets.UTF_8);
+                content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowers()), StandardCharsets.UTF_8);
+                content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowing()), StandardCharsets.UTF_8);
+            }
         }
 
         this.sendAck(BGSMessage.Opcode.LOGSTAT, content);
@@ -340,13 +348,15 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
         }
 
         // Create ack msg content.
-        String content = ""; // TODO - handle block
+        String content = ""; 
         for (Iterator<String> iter = usernames.iterator(); iter.hasNext(); ) {
             BGSStudent currentStudent = this.usernamesToStudentMap.get(iter.next());
-            content += new String(BGSMessage.shortToBytes((short)currentStudent.getAge()), StandardCharsets.UTF_8);
-            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfPosts()), StandardCharsets.UTF_8);
-            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowers()), StandardCharsets.UTF_8);
-            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowing()), StandardCharsets.UTF_8);
+            if (!this.student.isBlocking(currentStudent) && !currentStudent.isBlocking(this.student)) {
+                content += new String(BGSMessage.shortToBytes((short)currentStudent.getAge()), StandardCharsets.UTF_8);
+                content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfPosts()), StandardCharsets.UTF_8);
+                content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowers()), StandardCharsets.UTF_8);
+                content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowing()), StandardCharsets.UTF_8);
+            }
         }
 
         // Send msg back.
