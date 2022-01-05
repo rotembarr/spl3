@@ -12,7 +12,9 @@ public class AckMessage extends BGSMessage{
 
     public boolean equals(Object other) {
         if (other instanceof AckMessage) {
-            return (this.messageOpcode == ((AckMessage)other).messageOpcode) && (this.optional.equals(((AckMessage)other).optional));
+            return (this.messageOpcode == ((AckMessage)other).messageOpcode && 
+                this.optional.equals(((AckMessage)other).optional)
+            );
         } else {
             return false;
         }

@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -21,7 +22,7 @@ public class BGSStudent {
     private List<BGSStudent> following; // one thread read and write.
     private Collection<BGSStudent> followers; // multiple therad write and one read.
     private Collection<BGSStudent> blocked; // multiple therad write and one read.
-    private Collection<NotificationMessage> backupNotifications; // multiple therad write and one read.
+    private Queue<NotificationMessage> backupNotifications; // multiple therad write and one read.
 
     // Statistics (can be accessed from multiple threads).
     private Collection<PostMessage> posts;
@@ -140,6 +141,10 @@ public class BGSStudent {
 
     public void backupNotification(NotificationMessage msg) {
         this.backupNotifications.add(msg);
+    }
+
+    public NotificationMessage getBackupNotification() {
+        return this.backupNotifications.poll();
     }
 
     public boolean isBlocking(BGSStudent student) {

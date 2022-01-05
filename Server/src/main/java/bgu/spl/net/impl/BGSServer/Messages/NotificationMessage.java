@@ -32,6 +32,18 @@ public class NotificationMessage extends BGSMessage{
         this.content = content;
     }
 
+    public boolean equals(Object other) {
+        if (other instanceof NotificationMessage) {
+            return (this.type == ((NotificationMessage)other).type && 
+                this.postingUser.equals(((NotificationMessage)other).postingUser) && 
+                this.content.equals(((NotificationMessage)other).content)
+            );
+        } else {
+            return false;
+        }
+    }
+
+
     public String encode() {
         return BGSMessage.opcodeToString(this.opcode) + (char)this.type + this.postingUser + '\0' + this.content + '\0';
     }

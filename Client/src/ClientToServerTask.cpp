@@ -47,17 +47,29 @@ void ClientToServerTask::operator()() {
                 f = 1;
             } else {
                 std::cout << "Bad argument" << std::endl;
+                continue;
             }
             msg = shortToString(4) + (char)f + command[2] + '\0';
 
         } else if (command[0].compare("POST") == 0) {
-            msg = shortToString(5) + command[1] + '\0';
+            std::string content = "";
+            for (std::size_t i = 1; i < command.size(); i++) {
+                content += (command[i] + " ");
+            }
+            msg = shortToString(5) + content + '\0';
 
         } else if (command[0].compare("PM") == 0) {
+            // date
             std::time_t now = std::time(0);
             std::tm* ltm = localtime(&now);
             std::string date = std::to_string(ltm->tm_mday) + '-' + std::to_string(1+ltm->tm_mon) + '-' + std::to_string(1900 + ltm->tm_year);
-            msg = shortToString(6) + command[1] + '\0' + command[2] + '\0' + date + '\0';
+
+            // content
+            std::string content = "";
+            for (std::size_t i = 2; i < command.size(); i++) {
+                content += (command[i] + " ");
+            }
+            msg = shortToString(6) + command[1] + '\0' + content + '\0' + date + '\0';
 
         } else if (command[0].compare("LOGSTAT") == 0) {
             msg = shortToString(7);

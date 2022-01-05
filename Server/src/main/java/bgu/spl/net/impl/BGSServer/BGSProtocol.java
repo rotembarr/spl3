@@ -133,6 +133,18 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
             this.student = mapedStudent;
             this.sendAck(BGSMessage.Opcode.LOGIN, "");
         }
+            
+        // Send all the buffered notification.
+        // No dengare of this.student logout beacuse he can logout only after this function finishes.
+        NotificationMessage notiMsg = null;
+        while ((notiMsg = this.student.getBackupNotification()) != null) {
+            boolean success = this.connections.send(this.connectionId, notiMsg);
+            // if (!success) { // TODO - if need to deal with disconnections
+            //     this.student.backupNotification(notiMsg);
+            //     break;
+            // }
+        }
+
     }
 
     private void handleLogout(LogoutMessage msg) {
@@ -267,15 +279,15 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
             return;
         } 
 
-        // // if this.student isn't following dst user.
-        // if (!this.student.isFollowing(dst)) {
-        //     this.sendError(BGSMessage.Opcode.PM);
-        //     return;
-        // } TODO
+        // if this.student isn't following dst user.
+        if (!this.student.isFollowing(dst)) {
+            this.sendError(BGSMessage.Opcode.PM);
+            return;
+        } 
 
         // Create notification msg to destenation user.
         msg.filter();
-        NotificationMessage notiMsg = new NotificationMessage((byte)0, this.student.getUsername(), msg.getContent());
+        NotificationMessage notiMsg = new NotificationMessage((byte)0, this.student.getUsername(), msg.getContent() + " " + msg.getSendingDateAndTime());
 
         // Send noti msg to dest, and save it if dest isn't connected.
         boolean success = this.connections.send(dst.getConnectionId(), notiMsg);
