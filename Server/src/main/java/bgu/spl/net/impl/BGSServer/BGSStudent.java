@@ -3,7 +3,6 @@ package bgu.spl.net.impl.BGSServer;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
@@ -89,6 +88,9 @@ public class BGSStudent {
         return this.following.contains(other);
     }
 
+    public boolean isFollower(BGSStudent other) {
+        return this.followers.contains(other);
+    }
 
     // Logic functions.
     public boolean follow(BGSStudent other) {

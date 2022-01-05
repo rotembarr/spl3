@@ -1,10 +1,12 @@
 package bgu.spl.net.impl.BGSServer;
 
-// import bgu.spl.net.srv.Server;
+import bgu.spl.net.srv.Server;
 
-// import bgu.spl.net.impl.BGSServer.Messages.BGSMessage;
-// import bgu.spl.net.impl.BGSServer.BGSEncoderDecoder;
-// import bgu.spl.net.impl.BGSServer.BGSProtocol;
+import bgu.spl.net.impl.BGSServer.Messages.BGSMessage;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 
 public class ReactorMain {
 
@@ -12,17 +14,19 @@ public class ReactorMain {
 
         if (args.length != 2) {
             System.out.println("Bad parameters passes. Usage <port> <Num of threads>");
+            return;
         }
 
 
-        
-        // TODO - refactor this
-        // Server.<BGSMessage>reactor(
-        //     Integer.parseInt(args[1]), // nThreads
-        //     Integer.parseInt(args[0]), //port
-        //     () -> new BGSProtocol(), //protocol factory
-        //     () -> new BGSEncoderDecoder() //message encoder decoder factory
-        // ).serve();
+        // Create a map to all users.
+        Map<String, BGSStudent> usernamesToStudentMap = new ConcurrentHashMap<String, BGSStudent>();
+
+        Server.<BGSMessage>reactor(
+            Integer.parseInt(args[1]), // nThreads
+            Integer.parseInt(args[0]), //port
+            () -> new BGSProtocol(usernamesToStudentMap), //protocol factory
+            () -> new BGSEncoderDecoder() //message encoder decoder factory
+        ).serve();
 
     }
 }

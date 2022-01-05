@@ -138,7 +138,8 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
         // No dengare of this.student logout beacuse he can logout only after this function finishes.
         NotificationMessage notiMsg = null;
         while ((notiMsg = this.student.getBackupNotification()) != null) {
-            boolean success = this.connections.send(this.connectionId, notiMsg);
+            this.connections.send(this.connectionId, notiMsg);
+            // boolean success = 
             // if (!success) { // TODO - if need to deal with disconnections
             //     this.student.backupNotification(notiMsg);
             //     break;
@@ -251,10 +252,18 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
         for (int i = 0; i < contentInWords.length; i++) {
             if (contentInWords[i].charAt(0) ==  '@') {
                 BGSStudent directedStudent = this.usernamesToStudentMap.get(contentInWords[i].substring(1));
+
+                // if direct isn't blocking
                 if (directedStudent != null && !this.student.isBlocking(directedStudent) && !directedStudent.isBlocking(this.student)) {
-                    boolean success = this.connections.send(directedStudent.getConnectionId(), notiMsg);
-                    if (!success) {
-                        directedStudent.backupNotification(notiMsg);
+
+                    // And if we are not already sent him this post.
+                    if (!this.student.isFollower(directedStudent)) {
+
+                        boolean success = this.connections.send(directedStudent.getConnectionId(), notiMsg);
+                        if (!success) {
+                            directedStudent.backupNotification(notiMsg);
+                        }
+                        
                     }
                 }
             }
@@ -362,7 +371,6 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
         // Send msg back.
         this.sendAck(BGSMessage.Opcode.STAT, content);
     }
-
 
     private void handleBlockMessage(BlockMessage msg) {
         
