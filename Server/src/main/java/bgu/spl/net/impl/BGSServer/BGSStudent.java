@@ -1,5 +1,6 @@
 package bgu.spl.net.impl.BGSServer;
 
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.Collection;
@@ -67,9 +68,13 @@ public class BGSStudent {
     }
 
     public int getAge() {
+        int ans = 120;
         String[] bd = this.birthday.split("-");
-        Period period = Period.between(LocalDate.now(), LocalDate.of(Integer.parseInt(bd[2]), Integer.parseInt(bd[1]), Integer.parseInt(bd[0])));
-        return period.getYears();
+        try {
+            Period period = Period.between(LocalDate.now(), LocalDate.of(Integer.parseInt(bd[2]), Integer.parseInt(bd[1]), Integer.parseInt(bd[0])));
+            ans = period.getYears();
+        } catch (DateTimeException | ArrayIndexOutOfBoundsException e) {}
+        return ans;
     }
 
     public int getNumOfFollowers() {

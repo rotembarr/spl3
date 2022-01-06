@@ -84,13 +84,13 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
         // Cannot register a register user.
         if (this.usernamesToStudentMap.containsKey(msg.getUsername())) {
             this.sendError(BGSMessage.Opcode.REGISTER);
+            return;
+        }
         
         // Create student but don't connect him.
-        } else {
-            BGSStudent newStudent = new BGSStudent(msg.getUsername(), msg.getPassword(), msg.getBirthday());
-            this.usernamesToStudentMap.put(msg.getUsername(), newStudent);
-            this.sendAck(BGSMessage.Opcode.REGISTER, "");
-        }
+        BGSStudent newStudent = new BGSStudent(msg.getUsername(), msg.getPassword(), msg.getBirthday());
+        this.usernamesToStudentMap.put(msg.getUsername(), newStudent);
+        this.sendAck(BGSMessage.Opcode.REGISTER, "");
     }
 
     private void handleLoginMessage(LoginMessage msg) {
@@ -327,6 +327,8 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
         Collection<BGSStudent> students = this.usernamesToStudentMap.values();
         for (Iterator<BGSStudent> iter =students.iterator(); iter.hasNext(); ) {
             BGSStudent currentStudent = iter.next();
+
+            // Create inforation for all user beside blocked users.
             if (!this.student.isBlocking(currentStudent) && !currentStudent.isBlocking(this.student)) {
                 content += new String(BGSMessage.shortToBytes((short)currentStudent.getAge()), StandardCharsets.UTF_8);
                 content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfPosts()), StandardCharsets.UTF_8);
@@ -335,6 +337,7 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
             }
         }
 
+        // Send msg back.
         this.sendAck(BGSMessage.Opcode.LOGSTAT, content);
     }
 
@@ -346,26 +349,30 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
             return;
         } 
 
-        // if one of the usernames isn't register.
+        // Create ack msg content.
+        String content = ""; 
         List<String> usernames = msg.getUsernames();
         for (Iterator<String> iter = usernames.iterator(); iter.hasNext(); ) {
             String username = iter.next();
+
+            // First check if threre is such a user.
             if (!this.usernamesToStudentMap.containsKey(username)) {
                 this.sendError(BGSMessage.Opcode.STAT);
                 return;
             }
-        }
 
-        // Create ack msg content.
-        String content = ""; 
-        for (Iterator<String> iter = usernames.iterator(); iter.hasNext(); ) {
-            BGSStudent currentStudent = this.usernamesToStudentMap.get(iter.next());
-            if (!this.student.isBlocking(currentStudent) && !currentStudent.isBlocking(this.student)) {
-                content += new String(BGSMessage.shortToBytes((short)currentStudent.getAge()), StandardCharsets.UTF_8);
-                content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfPosts()), StandardCharsets.UTF_8);
-                content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowers()), StandardCharsets.UTF_8);
-                content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowing()), StandardCharsets.UTF_8);
-            }
+            // Then check if there isn't blocking.
+            BGSStudent currentStudent = this.usernamesToStudentMap.get(username);
+            if (this.student.isBlocking(currentStudent) || currentStudent.isBlocking(this.student)) {
+                this.sendError(BGSMessage.Opcode.STAT);
+                return;
+            } 
+
+            // If all good, add this user to ack msg.
+            content += new String(BGSMessage.shortToBytes((short)currentStudent.getAge()), StandardCharsets.UTF_8);
+            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfPosts()), StandardCharsets.UTF_8);
+            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowers()), StandardCharsets.UTF_8);
+            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowing()), StandardCharsets.UTF_8);
         }
 
         // Send msg back.

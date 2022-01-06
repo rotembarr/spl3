@@ -45,7 +45,30 @@ void ServerToClientTask::operator()() {
         // Ack
         } else if (opcode == 10) {
             short msgOpcode = stringToShort(msg.substr(0,2));
-            line = "ACK " + std::to_string(msgOpcode) + " " + msg.substr(2);
+            msg = msg.substr(2);
+
+            line = "ACK " + std::to_string(msgOpcode) + " ";
+
+            // Parse lOGs.
+            if ((msgOpcode == 7) | (msgOpcode == 8)) {
+                while (msg.size() > 0) {
+                    short age = stringToShort(msg.substr(0,2));
+                    msg = msg.substr(2);
+                    short numPosts = stringToShort(msg.substr(0,2));
+                    msg = msg.substr(2);
+                    short numFollowers = stringToShort(msg.substr(0,2));
+                    msg = msg.substr(2);
+                    short numFollowing = stringToShort(msg.substr(0,2));
+                    msg = msg.substr(2);
+                    line += std::to_string(age) + " " + std::to_string(numPosts) + " " + std::to_string(numFollowers) + " " + std::to_string(numFollowing);
+
+                    if (msg.size() != 0) {
+                        line += "\n";
+                    }
+                }
+            } else {
+                line += msg;
+            }
 
             // Terminate if getting ack after logout.
             if (msgOpcode == 3) {

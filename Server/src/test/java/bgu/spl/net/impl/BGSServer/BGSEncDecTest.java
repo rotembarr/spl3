@@ -4,6 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.util.List;
+
 import org.junit.Test;
 
 import bgu.spl.net.impl.BGSServer.Messages.BGSMessage;
@@ -12,6 +14,7 @@ import bgu.spl.net.impl.BGSServer.Messages.LoginMessage;
 import bgu.spl.net.impl.BGSServer.Messages.LogoutMessage;
 import bgu.spl.net.impl.BGSServer.Messages.PMMessage;
 import bgu.spl.net.impl.BGSServer.Messages.PostMessage;
+import bgu.spl.net.impl.BGSServer.Messages.StatMessage;
 import bgu.spl.net.impl.BGSServer.Messages.BGSMessage.Opcode;
 
 public class BGSEncDecTest {
@@ -107,6 +110,17 @@ public class BGSEncDecTest {
         assertEquals(username, castmsg.getUsername());
         assertEquals(content, castmsg.getContent());
         assertEquals(dateandtime, castmsg.getSendingDateAndTime());
+    }
+
+    @Test
+    public void testStat() {
+        String src = "aa aa|bb!|Kaki" + '\0';
+        StatMessage msg = StatMessage.decode(src);
+        List<String> usernames = msg.getUsernames();
+        assertEquals(3, usernames.size());
+        assertEquals("aa aa", usernames.get(0));
+        assertEquals("bb!", usernames.get(1));
+        assertEquals("Kaki", usernames.get(2));
     }
 
 }

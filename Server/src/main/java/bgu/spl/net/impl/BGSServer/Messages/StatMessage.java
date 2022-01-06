@@ -17,7 +17,7 @@ public class StatMessage extends BGSMessage{
     }
     
     public static StatMessage decode(String src) {
-        String[] names = src.substring(0, src.length()-1).split("|");
+        String[] names = (src.substring(0, src.length()-1)).split("\\|");
     
         List<String> usernames = new LinkedList<String>();
         for (int i = 0; i < names.length; i++) {

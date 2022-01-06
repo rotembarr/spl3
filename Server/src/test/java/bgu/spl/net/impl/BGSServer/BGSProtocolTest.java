@@ -4,9 +4,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,12 +25,14 @@ import bgu.spl.net.impl.BGSServer.Messages.BGSMessage;
 import bgu.spl.net.impl.BGSServer.Messages.BlockMessage;
 import bgu.spl.net.impl.BGSServer.Messages.ErrorMessage;
 import bgu.spl.net.impl.BGSServer.Messages.FollowMessage;
+import bgu.spl.net.impl.BGSServer.Messages.LogStatMessage;
 import bgu.spl.net.impl.BGSServer.Messages.LoginMessage;
 import bgu.spl.net.impl.BGSServer.Messages.LogoutMessage;
 import bgu.spl.net.impl.BGSServer.Messages.NotificationMessage;
 import bgu.spl.net.impl.BGSServer.Messages.PMMessage;
 import bgu.spl.net.impl.BGSServer.Messages.PostMessage;
 import bgu.spl.net.impl.BGSServer.Messages.RegisterMessage;
+import bgu.spl.net.impl.BGSServer.Messages.StatMessage;
 import bgu.spl.net.impl.BGSServer.Messages.BGSMessage.Opcode;
 import bgu.spl.net.srv.BlockingConnectionHandler;
 import bgu.spl.net.srv.bidi.ConnectionHandler;
@@ -590,5 +597,231 @@ public class BGSProtocolTest {
         // Mor Log shouldn't contain Rotem and shay.
 
         assertTrue("message left in connection", this.connections.checkAllClear());
+    }
+
+    
+    @Test
+    public void testLogStat() {
+        BGSProtocol protocol1 = this.createProtocol();
+        BGSProtocol protocol2 = this.createProtocol();
+        BGSProtocol protocol3 = this.createProtocol();
+
+        // LogStat by Unregister client - should return error.
+        LogStatMessage msg1= new LogStatMessage();        
+        connections.expectSend(protocol1.getConnectionId(), new ErrorMessage(Opcode.LOGSTAT));
+        protocol1.process(msg1);
+
+        // Mor register should success
+        RegisterMessage msg2 = new RegisterMessage("Mor", "123 ", "29-12-1997");
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.REGISTER, ""));
+        protocol1.process(msg2);
+        assertEquals(1, this.usernamesToStudentMap.size());
+        
+        //LogStat by unLogIn client- should return error.
+        LogStatMessage msg3= new LogStatMessage();        
+        connections.expectSend(protocol1.getConnectionId(), new ErrorMessage(Opcode.LOGSTAT));
+        protocol1.process(msg3);
+
+        // Mor login should success
+        LoginMessage msg4 = new LoginMessage("Mor", "123 ", (byte)1);
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.LOGIN, ""));
+        protocol1.process(msg4);
+        
+        // LogStat by Login client- should return ack message.
+        LogStatMessage msg5= new LogStatMessage(); 
+        BGSStudent mor= this.usernamesToStudentMap.get("Mor");
+        String content = ""; 
+        content += new String(BGSMessage.shortToBytes((short)mor.getAge()), StandardCharsets.UTF_8);
+        content += new String(BGSMessage.shortToBytes((short)mor.getNumOfPosts()), StandardCharsets.UTF_8);
+        content += new String(BGSMessage.shortToBytes((short)mor.getNumOfFollowers()), StandardCharsets.UTF_8);
+        content += new String(BGSMessage.shortToBytes((short)mor.getNumOfFollowing()), StandardCharsets.UTF_8);   
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.LOGSTAT,content));
+        protocol1.process(msg5);
+
+
+        //////// LogStat for multipule users
+
+        // Rotem register should success
+        RegisterMessage msg6 = new RegisterMessage("Rotem", "123 ", "29-12-1997");
+        connections.expectSend(protocol2.getConnectionId(), new AckMessage(Opcode.REGISTER, ""));
+        protocol2.process(msg6);
+        assertEquals(2, this.usernamesToStudentMap.size());
+ 
+        // Shay register should success
+        RegisterMessage msg7 = new RegisterMessage("Shay", "123 ", "29-12-1997");
+        connections.expectSend(protocol3.getConnectionId(), new AckMessage(Opcode.REGISTER, ""));
+        protocol3.process(msg7);
+        assertEquals(3, this.usernamesToStudentMap.size());
+        
+        // Rotem login should success
+        LoginMessage msg8 = new LoginMessage("Rotem", "123 ", (byte)1);
+        connections.expectSend(protocol2.getConnectionId(), new AckMessage(Opcode.LOGIN, ""));
+        protocol2.process(msg8);
+
+        // Shay login should success
+        LoginMessage msg9 = new LoginMessage("Shay", "123 ", (byte)1);
+        connections.expectSend(protocol3.getConnectionId(), new AckMessage(Opcode.LOGIN, ""));
+        protocol3.process(msg9);
+
+        // Rotem follow after Mor and Mor follow after Rotem + Rotem is posting a post
+        FollowMessage msg10= new FollowMessage((byte) 0, "Rotem");
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.FOLLOW, "Rotem" + '\0'));
+        protocol1.process(msg10);
+
+        FollowMessage msg11= new FollowMessage((byte) 0, "Mor");
+        connections.expectSend(protocol2.getConnectionId(), new AckMessage(Opcode.FOLLOW, "Mor" + '\0'));
+        protocol2.process(msg11);
+
+        PostMessage msg12 = new PostMessage("Post 1");
+        connections.expectSend(protocol2.getConnectionId(), new AckMessage(Opcode.POST, ""));
+        connections.expectSend(protocol1.getConnectionId(), new NotificationMessage((byte)1, "Rotem", "Post 1"));
+        protocol2.process(msg12);
+
+        // LogStat
+        LogStatMessage msg13= new LogStatMessage(); 
+        
+        String content1 = ""; 
+        Collection<BGSStudent> students = this.usernamesToStudentMap.values();
+        for (Iterator<BGSStudent> iter =students.iterator(); iter.hasNext(); ) {
+            BGSStudent currentStudent = iter.next();
+            if (!mor.isBlocking(currentStudent) && !currentStudent.isBlocking(mor)) {
+                content1 += new String(BGSMessage.shortToBytes((short)currentStudent.getAge()), StandardCharsets.UTF_8);
+                content1 += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfPosts()), StandardCharsets.UTF_8);
+                content1 += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowers()), StandardCharsets.UTF_8);
+                content1 += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowing()), StandardCharsets.UTF_8);
+            }
+        }
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.LOGSTAT,content1));
+        protocol1.process(msg13);
+
+        // LogStat with blocked user
+        BlockMessage msg14 = new BlockMessage("Shay");
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.BLOCK, ""));
+        protocol1.process(msg14);
+
+        LogStatMessage msg15= new LogStatMessage();
+        String content2 = ""; 
+        Collection<BGSStudent> students1 = this.usernamesToStudentMap.values();
+        for (Iterator<BGSStudent> iter1 =students1.iterator(); iter1.hasNext(); ) {
+            BGSStudent currentStudent1 = iter1.next();
+            if (!mor.isBlocking(currentStudent1) && !currentStudent1.isBlocking(mor)) {
+                content2 += new String(BGSMessage.shortToBytes((short)currentStudent1.getAge()), StandardCharsets.UTF_8);
+                content2 += new String(BGSMessage.shortToBytes((short)currentStudent1.getNumOfPosts()), StandardCharsets.UTF_8);
+                content2 += new String(BGSMessage.shortToBytes((short)currentStudent1.getNumOfFollowers()), StandardCharsets.UTF_8);
+                content2 += new String(BGSMessage.shortToBytes((short)currentStudent1.getNumOfFollowing()), StandardCharsets.UTF_8);
+            }
+        }
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.LOGSTAT,content2));
+        protocol1.process(msg15);
+        
+        assertTrue("message left in connection", this.connections.checkAllClear());
+    }
+
+    @Test
+    public void testStat() {
+        BGSProtocol protocol1 = this.createProtocol();
+        BGSProtocol protocol2 = this.createProtocol();
+        BGSProtocol protocol3 = this.createProtocol();
+
+        // Rotem register should success
+        RegisterMessage msg1 = new RegisterMessage("Rotem", "123 ", "29-12-1997");
+        connections.expectSend(protocol2.getConnectionId(), new AckMessage(Opcode.REGISTER, ""));
+        protocol2.process(msg1);
+        assertEquals(1, this.usernamesToStudentMap.size());
+
+        // Shay register should success
+        RegisterMessage msg2 = new RegisterMessage("Shay", "123 ", "29-12-1997");
+        connections.expectSend(protocol3.getConnectionId(), new AckMessage(Opcode.REGISTER, ""));
+        protocol3.process(msg2);
+        assertEquals(2, this.usernamesToStudentMap.size());
+    
+        // Rotem login should success
+        LoginMessage msg3 = new LoginMessage("Rotem", "123 ", (byte)1);
+        connections.expectSend(protocol2.getConnectionId(), new AckMessage(Opcode.LOGIN, ""));
+        protocol2.process(msg3);
+
+        // Shay login should success
+        LoginMessage msg4 = new LoginMessage("Shay", "123 ", (byte)1);
+        connections.expectSend(protocol3.getConnectionId(), new AckMessage(Opcode.LOGIN, ""));
+        protocol3.process(msg4);
+        
+        // Stat by Unregister client - should return error.
+        List<String> usernames= new LinkedList<String>();
+        usernames.add("Rotem");
+        usernames.add("Shay");
+        StatMessage msg5= new StatMessage(usernames);        
+        connections.expectSend(protocol1.getConnectionId(), new ErrorMessage(Opcode.STAT));
+        protocol1.process(msg5);
+
+
+        // Stat by unLogIn client- should return error.
+        // Mor register should success
+        RegisterMessage msg6 = new RegisterMessage("Mor", "123 ", "29-12-1997");
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.REGISTER, ""));
+        protocol1.process(msg6);
+        assertEquals(3, this.usernamesToStudentMap.size());
+
+        StatMessage msg7= new StatMessage(usernames);        
+        connections.expectSend(protocol1.getConnectionId(), new ErrorMessage(Opcode.STAT));
+        protocol1.process(msg7);
+
+        // LogStat by Login client- should return ack message.
+        LoginMessage msg8 = new LoginMessage("Mor", "123 ", (byte)1);
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.LOGIN, ""));
+        protocol1.process(msg8);
+
+        //Rotem follow after Mor and Mor follow after Rotem + Rotem is posting a post
+        FollowMessage msg9= new FollowMessage((byte) 0, "Rotem");
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.FOLLOW, "Rotem" + '\0'));
+        protocol1.process(msg9);
+
+        FollowMessage msg10= new FollowMessage((byte) 0, "Mor");
+        connections.expectSend(protocol2.getConnectionId(), new AckMessage(Opcode.FOLLOW, "Mor" + '\0'));
+        protocol2.process(msg10);
+
+        PostMessage msg11 = new PostMessage("Post 1");
+        connections.expectSend(protocol2.getConnectionId(), new AckMessage(Opcode.POST, ""));
+        connections.expectSend(protocol1.getConnectionId(), new NotificationMessage((byte)1, "Rotem", "Post 1"));
+        protocol2.process(msg11);
+
+        // Stat message should success.
+        StatMessage msg12= new StatMessage(usernames); 
+        String content = ""; 
+        for (Iterator<String> iter = usernames.iterator(); iter.hasNext(); ) {
+            BGSStudent currentStudent = this.usernamesToStudentMap.get(iter.next());
+            content += new String(BGSMessage.shortToBytes((short)currentStudent.getAge()), StandardCharsets.UTF_8);
+            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfPosts()), StandardCharsets.UTF_8);
+            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowers()), StandardCharsets.UTF_8);
+            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowing()), StandardCharsets.UTF_8);
+        }
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.STAT,content));
+        protocol1.process(msg12);
+
+
+        //// LogStat with non register user-should return error
+        usernames.add("Gaya");
+        StatMessage msg13= new StatMessage(usernames);
+        connections.expectSend(protocol1.getConnectionId(), new ErrorMessage(Opcode.STAT));
+        protocol1.process(msg13);
+        usernames.remove("Gaya");
+
+        // Mor block Shay should success.
+        BlockMessage msg14 = new BlockMessage("Shay");
+        connections.expectSend(protocol1.getConnectionId(), new AckMessage(Opcode.BLOCK, ""));
+        protocol1.process(msg14);
+        
+        // Stat with blocking user should return Error
+        StatMessage msg15= new StatMessage(usernames); 
+        connections.expectSend(protocol1.getConnectionId(), new ErrorMessage(Opcode.STAT));
+        protocol1.process(msg15);
+
+        assertTrue("message left in connection", this.connections.checkAllClear());
+    }
+
+    @Test 
+    public void testDate() {
+        String date = "12-02-200";
+        String[] arr = date.split("-");
+        Period period = Period.between(LocalDate.now(), LocalDate.of(Integer.parseInt(arr[2]), Integer.parseInt(arr[1]), Integer.parseInt(arr[0])));
     }
 }
