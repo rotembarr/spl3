@@ -4,7 +4,6 @@ import bgu.spl.net.srv.bidi.ConnectionHandler;
 
 public interface Connections<T> {
 
-    // TODO - ask if posible
     int connect(ConnectionHandler<T> handler);
 
     boolean isConnected(int connectionId);

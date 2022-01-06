@@ -1,6 +1,7 @@
 package bgu.spl.net.impl.BGSServer;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -106,7 +107,6 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
         }
 
         // This code has to be in synchronized in order not to logged in twice the same student.
-        // TODO change to busy wait.
         synchronized (mapedStudent) {
 
             // Student already logged in.
@@ -250,10 +250,12 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
         // Search directed users and send them also the post.
         String[] contentInWords = msg.getContent().split(" ");
         for (int i = 0; i < contentInWords.length; i++) {
+
+            // Taged person
             if (contentInWords[i].charAt(0) ==  '@') {
                 BGSStudent directedStudent = this.usernamesToStudentMap.get(contentInWords[i].substring(1));
 
-                // if direct isn't blocking
+                // if direct register and isn't blocking
                 if (directedStudent != null && !this.student.isBlocking(directedStudent) && !directedStudent.isBlocking(this.student)) {
 
                     // And if we are not already sent him this post.
@@ -394,6 +396,12 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
             return;
         } 
         
+        // Cant block ourselves.
+        if (blockedStudent == this.student) {
+            this.sendError(BGSMessage.Opcode.BLOCK);
+            return;
+        } 
+
         // Blocking.
         this.student.block(blockedStudent);
         

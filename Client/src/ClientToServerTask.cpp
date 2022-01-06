@@ -34,7 +34,11 @@ void ClientToServerTask::operator()() {
             msg = shortToString(1) + command[1] + '\0' + command[2] + '\0' + command[3] + '\0';
             
         } else if (command[0].compare("LOGIN") == 0) {
-            msg = shortToString(2) + command[1] + '\0' + command[2] + '\0' + (char)1;
+            int c = 0; // Captcha
+            if (command[3].compare("1") == 0) {
+                c = 1;
+            }
+            msg = shortToString(2) + command[1] + '\0' + command[2] + '\0' + (char)c;
 
         } else if (command[0].compare("LOGOUT") == 0) {
             msg = shortToString(3);
