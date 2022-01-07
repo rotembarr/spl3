@@ -3,7 +3,6 @@ package bgu.spl.net.srv;
 import bgu.spl.net.api.MessageEncoderDecoder;
 import bgu.spl.net.api.bidi.BidiMessagingProtocol;
 import bgu.spl.net.api.bidi.Connections;
-import bgu.spl.net.srv.ThreadPerClient.BlockingConnections;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -40,7 +39,7 @@ public class Reactor<T> implements Server<T> {
         this.port = port;
         this.protocolFactory = protocolFactory;
         this.readerFactory = readerFactory;
-        this.connections = new BlockingConnections<T>();
+        this.connections = new ConnectionsImpl<T>();
     }
 
     @Override

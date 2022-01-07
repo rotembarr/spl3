@@ -3,7 +3,6 @@ package bgu.spl.net.srv;
 import bgu.spl.net.api.MessageEncoderDecoder;
 import bgu.spl.net.api.bidi.BidiMessagingProtocol;
 import bgu.spl.net.api.bidi.Connections;
-import bgu.spl.net.srv.ThreadPerClient.BlockingConnections;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -30,7 +29,7 @@ public abstract class BaseServer<T> implements Server<T> {
         this.protocolFactory = protocolFactory;
         this.encdecFactory = encdecFactory;
 		this.sock = null;
-        this.connections = new BlockingConnections<T>();
+        this.connections = new ConnectionsImpl<T>();
     }
 
     @Override

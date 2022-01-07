@@ -1,4 +1,4 @@
-package bgu.spl.net.srv.ThreadPerClient;
+package bgu.spl.net.srv;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -8,12 +8,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import bgu.spl.net.api.bidi.Connections;
 import bgu.spl.net.srv.bidi.ConnectionHandler;
 
-public class BlockingConnections<T> implements Connections<T>{
+public class ConnectionsImpl<T> implements Connections<T>{
 
     private Map<Integer, ConnectionHandler<T>> idToHandlerMap = null;
     private int connectionsCounter; 
 
-    public BlockingConnections() {
+    public ConnectionsImpl() {
         this.idToHandlerMap = new ConcurrentHashMap<Integer, ConnectionHandler<T>>();
         this.connectionsCounter = 0;
     }

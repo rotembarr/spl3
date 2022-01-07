@@ -153,7 +153,5 @@ public class MessagesTest {
         byte[] arr = s.getBytes();
         String s2 = new String(arr, StandardCharsets.UTF_8);
         assertEquals(s, s2);
-
-        System.out.println(s);
     }
 }

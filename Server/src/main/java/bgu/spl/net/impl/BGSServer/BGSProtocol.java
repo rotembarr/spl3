@@ -121,50 +121,50 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
                 return;
             }
     
-            // Captcha is 0.
-            if (msg.getCaptcha() == (byte)0) {
+            // Captcha isn't 1.
+            if (msg.getCaptcha() != (byte)1) {
                 this.sendError(BGSMessage.Opcode.LOGIN);
                 return;
             }
     
             // If login aproval, set his connectionId and open him to conversation.
             // No need to synchronize this because this is the only thread anyone can change this student.
-            mapedStudent.setConnectionId(this.connectionId);
             this.student = mapedStudent;
+            mapedStudent.setConnectionId(this.connectionId);
             this.sendAck(BGSMessage.Opcode.LOGIN, "");
-        }
+
+        } // synchronize
             
         // Send all the buffered notification.
         // No dengare of this.student logout beacuse he can logout only after this function finishes.
         NotificationMessage notiMsg = null;
         while ((notiMsg = this.student.getBackupNotification()) != null) {
             this.connections.send(this.connectionId, notiMsg);
-            // boolean success = 
-            // if (!success) { // TODO - if need to deal with disconnections
-            //     this.student.backupNotification(notiMsg);
-            //     break;
-            // }
         }
 
     }
 
     private void handleLogout(LogoutMessage msg) {
+        // Note: no need to sync this function because we are loggin out.
+        //       There is no denage of someone foolow or block this.student while executing this function.
+        //       The denage here is we will logout but someone will send this CID a msg after we will send our ack for logout.    
+        //       The solution for this problem is simple - 
 
         // if no user register to this connection id send error.
         if (this.student == null) {
             this.sendError(BGSMessage.Opcode.LOGOUT);
-        } else {
-
-            // Make this student unconnected.
-            this.student.setConnectionId(-1);
-            this.student = null;
-            
-            // After this ack sent, the client will close the connection, and this protocol will die.
-            this.sendAck(BGSMessage.Opcode.LOGOUT, "");
-            
-            // No need to synchronize this because this is the only thread anyone can change this student.
-            this.connections.disconnect(this.connectionId);
+            return;
         }
+
+        // Make this student unconnected.
+        this.student.setConnectionId(-1);
+        this.student = null;
+        
+        // After this ack sent, the client will close the connection, and this protocol will die.
+        this.sendAck(BGSMessage.Opcode.LOGOUT, "");
+        
+        // No need to synchronize connections because this thread is the only thread that allowed to disconnet this CID.
+        this.connections.disconnect(this.connectionId);
     }
 
     private void handleFollowMessage(FollowMessage msg) {
@@ -188,42 +188,63 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
             return;
         }
 
-        // If one of us blocking the other
-        if (this.student.isBlocking(otherStudent) || otherStudent.isBlocking(this.student)) {
-            this.sendError(BGSMessage.Opcode.FOLLOW);
-            return;
-        }
-        
-        // 0 for follow
-        if (msg.getFollow() == 0) {
-            
-            // Already following.
-            if (this.student.isFollowing(otherStudent)) {
-                this.sendError(BGSMessage.Opcode.FOLLOW);
-                return;
-            }
-
-            // Follow.
-            this.student.follow(otherStudent);
-
-        // 1 for unfollow
-        } else if (msg.getFollow() == 1) {
-            
-            // Not following.
-            if (!this.student.isFollowing(otherStudent)) {
-                this.sendError(BGSMessage.Opcode.FOLLOW);
-                return;
-            }
-
-            // Unfollow.
-            this.student.unfollow(otherStudent);
+        // Prepre locks.
+        BGSStudent studentLock1 = null;
+        BGSStudent studentLock2 = null;
+        if (this.student.hashCode() >= otherStudent.hashCode()) {
+            studentLock1 = this.student;
+            studentLock2 = otherStudent;
         } else {
-            System.out.println("Error in parsing follow message");
-            this.sendError(BGSMessage.Opcode.FOLLOW);
-            return;
+            studentLock1 = otherStudent;
+            studentLock2 = this.student;
         }
 
-        this.sendAck(BGSMessage.Opcode.FOLLOW, msg.getUsername() + '\0');
+        // Lock both students.
+        synchronized (studentLock1) {
+            synchronized (studentLock2) {
+
+                // If one of us blocking the other
+                if (this.student.isBlocking(otherStudent) || otherStudent.isBlocking(this.student)) {
+                    this.sendError(BGSMessage.Opcode.FOLLOW);
+                    return;
+                } 
+
+                // 0 for follow
+                if (msg.getFollow() == 0) {
+                    
+                    // Already following.
+                    if (this.student.isFollowing(otherStudent)) {
+                        this.sendError(BGSMessage.Opcode.FOLLOW);
+                        return;
+                    } 
+
+                    // Follow !
+                    this.student.follow(otherStudent); 
+        
+                // 1 for unfollow
+                } else if (msg.getFollow() == 1) {
+                    
+                    // Not following.
+                    if (!this.student.isFollowing(otherStudent)) {
+                        this.sendError(BGSMessage.Opcode.FOLLOW);
+                        return;
+                    } 
+
+                    // Unfollow.
+                    this.student.unfollow(otherStudent); 
+                    
+                } else {
+                    System.out.println("Error in parsing follow message");
+                    this.sendError(BGSMessage.Opcode.FOLLOW);
+                    return;
+                }         
+
+                // Send ack.
+                this.sendAck(BGSMessage.Opcode.FOLLOW, msg.getUsername() + '\0');
+
+            } // synchronize
+        } // synchronize
+
     }
 
     private void handlePostMessage(PostMessage msg) {
@@ -237,42 +258,48 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
         // Create notification msg to send for all the destenation users.
         NotificationMessage notiMsg = new NotificationMessage((byte)1, this.student.getUsername(), msg.getContent());
 
-        // Send the post to all the follwers.
-        Collection<BGSStudent> dstStudents = this.student.getFollowers();
-        for (Iterator<BGSStudent> iter = dstStudents.iterator(); iter.hasNext(); ) {
-            BGSStudent dst = iter.next();
-            boolean success = this.connections.send(dst.getConnectionId(), notiMsg);
-            if (!success) {
-                dst.backupNotification(notiMsg);
+        // Lock the student in order no follow/unfollow or block to this user will happend during sending
+        synchronized (this.student) {
+
+            // Send the post to all the follwers.
+            Collection<BGSStudent> dstStudents = this.student.getFollowers();
+            for (Iterator<BGSStudent> iter = dstStudents.iterator(); iter.hasNext(); ) {
+                BGSStudent dst = iter.next();
+                boolean success = this.connections.send(dst.getConnectionId(), notiMsg);
+                if (!success) {
+                    dst.backupNotification(notiMsg);
+                }
             }
-        }
 
-        // Search directed users and send them also the post.
-        String[] contentInWords = msg.getContent().split(" ");
-        for (int i = 0; i < contentInWords.length; i++) {
+            // Search directed users and send them also the post.
+            String[] contentInWords = msg.getContent().split(" ");
+            for (int i = 0; i < contentInWords.length; i++) {
+    
+                // Taged person
+                if (contentInWords[i].charAt(0) ==  '@') {
+                    BGSStudent directedStudent = this.usernamesToStudentMap.get(contentInWords[i].substring(1));
+    
+                    // if direct register and isn't blocking
+                    if (directedStudent != null && !this.student.isBlocking(directedStudent) && !directedStudent.isBlocking(this.student)) {
+    
+                        // And if we are not already sent him this post.
+                        if (!this.student.isFollower(directedStudent)) {
+    
+                            boolean success = this.connections.send(directedStudent.getConnectionId(), notiMsg);
+                            if (!success) {
+                                directedStudent.backupNotification(notiMsg);
+                            }
 
-            // Taged person
-            if (contentInWords[i].charAt(0) ==  '@') {
-                BGSStudent directedStudent = this.usernamesToStudentMap.get(contentInWords[i].substring(1));
-
-                // if direct register and isn't blocking
-                if (directedStudent != null && !this.student.isBlocking(directedStudent) && !directedStudent.isBlocking(this.student)) {
-
-                    // And if we are not already sent him this post.
-                    if (!this.student.isFollower(directedStudent)) {
-
-                        boolean success = this.connections.send(directedStudent.getConnectionId(), notiMsg);
-                        if (!success) {
-                            directedStudent.backupNotification(notiMsg);
                         }
-                        
                     }
                 }
             }
-        }
+        
+            // Save Post and send ack.
+            this.student.savePost(msg);
+            this.sendAck(BGSMessage.Opcode.POST, "");
 
-        this.student.savePost(msg);
-        this.sendAck(BGSMessage.Opcode.POST, "");
+        } // synchronize
     }
 
     private void handlePMMessage(PMMessage msg) {
@@ -290,30 +317,34 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
             return;
         } 
 
-        // Can't send PM to blockes users
-        if (dst.isBlocking(this.student) || this.student.isBlocking(dst)) {
-            this.sendError(BGSMessage.Opcode.PM);
-            return;
-        } 
+        // Synch this.student in order anyone else wont unfollow or block this.student
+        synchronized (this.student) {
 
-        // if this.student isn't following dst user.
-        if (!this.student.isFollowing(dst)) {
-            this.sendError(BGSMessage.Opcode.PM);
-            return;
-        } 
-
-        // Create notification msg to destenation user.
-        msg.filter();
-        NotificationMessage notiMsg = new NotificationMessage((byte)0, this.student.getUsername(), msg.getContent() + " " + msg.getSendingDateAndTime());
-
-        // Send noti msg to dest, and save it if dest isn't connected.
-        boolean success = this.connections.send(dst.getConnectionId(), notiMsg);
-        if (!success) {
-            dst.backupNotification(notiMsg);
-        }
-
-        this.student.savePM(msg);
-        this.sendAck(BGSMessage.Opcode.PM, "");
+            // Can't send PM to blockes users
+            if (dst.isBlocking(this.student) || this.student.isBlocking(dst)) {
+                this.sendError(BGSMessage.Opcode.PM);
+                return;
+            } 
+    
+            // if this.student isn't following dst user.
+            if (!this.student.isFollowing(dst)) {
+                this.sendError(BGSMessage.Opcode.PM);
+                return;
+            } 
+    
+            // Create notification msg to destenation user.
+            msg.filter();
+            NotificationMessage notiMsg = new NotificationMessage((byte)0, this.student.getUsername(), msg.getContent() + " " + msg.getSendingDateAndTime());
+    
+            // Send noti msg to dest, and save it if dest isn't connected.
+            boolean success = this.connections.send(dst.getConnectionId(), notiMsg);
+            if (!success) {
+                dst.backupNotification(notiMsg);
+            }
+    
+            this.student.savePM(msg);
+            this.sendAck(BGSMessage.Opcode.PM, "");
+        } // synchronize
     } 
 
     private void handleLogStatMessage(LogStatMessage msg) {
@@ -324,23 +355,27 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
             return;
         } 
 
-        // Create ack msg content.
-        String content = ""; 
-        Collection<BGSStudent> students = this.usernamesToStudentMap.values();
-        for (Iterator<BGSStudent> iter =students.iterator(); iter.hasNext(); ) {
-            BGSStudent currentStudent = iter.next();
+        // Synch this.student in order anyone else wont unfollow or block this.student
+        synchronized (this.student) {
 
-            // Create inforation for all user beside blocked users.
-            if (!this.student.isBlocking(currentStudent) && !currentStudent.isBlocking(this.student)) {
-                content += new String(BGSMessage.shortToBytes((short)currentStudent.getAge()), StandardCharsets.UTF_8);
-                content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfPosts()), StandardCharsets.UTF_8);
-                content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowers()), StandardCharsets.UTF_8);
-                content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowing()), StandardCharsets.UTF_8);
+            // Create ack msg content.
+            String content = ""; 
+            Collection<BGSStudent> students = this.usernamesToStudentMap.values();
+            for (Iterator<BGSStudent> iter =students.iterator(); iter.hasNext(); ) {
+                BGSStudent currentStudent = iter.next();
+
+                // Create inforation for all user beside blocked users.
+                if (!this.student.isBlocking(currentStudent) && !currentStudent.isBlocking(this.student)) {
+                    content += new String(BGSMessage.shortToBytes((short)currentStudent.getAge()), StandardCharsets.UTF_8);
+                    content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfPosts()), StandardCharsets.UTF_8);
+                    content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowers()), StandardCharsets.UTF_8);
+                    content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowing()), StandardCharsets.UTF_8);
+                }
             }
-        }
 
-        // Send msg back.
-        this.sendAck(BGSMessage.Opcode.LOGSTAT, content);
+            // Send msg back.
+            this.sendAck(BGSMessage.Opcode.LOGSTAT, content);
+        } // synchronize
     }
 
     private void handleStatMessage(StatMessage msg) {
@@ -351,34 +386,38 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
             return;
         } 
 
-        // Create ack msg content.
-        String content = ""; 
-        List<String> usernames = msg.getUsernames();
-        for (Iterator<String> iter = usernames.iterator(); iter.hasNext(); ) {
-            String username = iter.next();
+        // Synch this.student in order anyone else wont unfollow or block this.student
+        synchronized (this.student) {
 
-            // First check if threre is such a user.
-            if (!this.usernamesToStudentMap.containsKey(username)) {
-                this.sendError(BGSMessage.Opcode.STAT);
-                return;
+            // Create ack msg content.
+            String content = ""; 
+            List<String> usernames = msg.getUsernames();
+            for (Iterator<String> iter = usernames.iterator(); iter.hasNext(); ) {
+                String username = iter.next();
+
+                // First check if threre is such a user.
+                if (!this.usernamesToStudentMap.containsKey(username)) {
+                    this.sendError(BGSMessage.Opcode.STAT);
+                    return;
+                }
+
+                // Then check if there isn't blocking.
+                BGSStudent currentStudent = this.usernamesToStudentMap.get(username);
+                if (this.student.isBlocking(currentStudent) || currentStudent.isBlocking(this.student)) {
+                    this.sendError(BGSMessage.Opcode.STAT);
+                    return;
+                } 
+
+                // If all good, add this user to ack msg.
+                content += new String(BGSMessage.shortToBytes((short)currentStudent.getAge()), StandardCharsets.UTF_8);
+                content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfPosts()), StandardCharsets.UTF_8);
+                content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowers()), StandardCharsets.UTF_8);
+                content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowing()), StandardCharsets.UTF_8);
             }
 
-            // Then check if there isn't blocking.
-            BGSStudent currentStudent = this.usernamesToStudentMap.get(username);
-            if (this.student.isBlocking(currentStudent) || currentStudent.isBlocking(this.student)) {
-                this.sendError(BGSMessage.Opcode.STAT);
-                return;
-            } 
-
-            // If all good, add this user to ack msg.
-            content += new String(BGSMessage.shortToBytes((short)currentStudent.getAge()), StandardCharsets.UTF_8);
-            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfPosts()), StandardCharsets.UTF_8);
-            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowers()), StandardCharsets.UTF_8);
-            content += new String(BGSMessage.shortToBytes((short)currentStudent.getNumOfFollowing()), StandardCharsets.UTF_8);
-        }
-
-        // Send msg back.
-        this.sendAck(BGSMessage.Opcode.STAT, content);
+            // Send msg back.
+            this.sendAck(BGSMessage.Opcode.STAT, content);
+        } // synchronize
     }
 
     private void handleBlockMessage(BlockMessage msg) {
@@ -396,17 +435,35 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
             return;
         } 
         
+        // Prepre locks.
+        BGSStudent studentLock1 = null;
+        BGSStudent studentLock2 = null;
+        if (this.student.hashCode() >= blockedStudent.hashCode()) {
+            studentLock1 = this.student;
+            studentLock2 = blockedStudent;
+        } else {
+            studentLock1 = blockedStudent;
+            studentLock2 = this.student;
+        }
+        
         // Cant block ourselves.
         if (blockedStudent == this.student) {
             this.sendError(BGSMessage.Opcode.BLOCK);
             return;
         } 
 
-        // Blocking.
-        this.student.block(blockedStudent);
-        
-        // Send msg back.
-        this.sendAck(BGSMessage.Opcode.BLOCK, "");
+        // Lock both students.
+        synchronized (studentLock1) {
+            synchronized (studentLock2) {
+
+                // Blocking.
+                this.student.block(blockedStudent);
+                
+                // Send msg back.
+                this.sendAck(BGSMessage.Opcode.BLOCK, "");
+
+            } // synchronize
+        }
     }
 
     private void sendError(BGSMessage.Opcode opcode) {

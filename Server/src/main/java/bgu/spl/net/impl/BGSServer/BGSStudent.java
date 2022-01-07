@@ -15,6 +15,10 @@ import bgu.spl.net.impl.BGSServer.Messages.PMMessage;
 import bgu.spl.net.impl.BGSServer.Messages.PostMessage;
 
 public class BGSStudent {
+    // Note: all sync of this class is taking care at the protocol, 
+    //       but all the data types are concurent for saffety.
+
+    // Variables.
     private final String username;
     private final String password;
     private final String birthday;
@@ -159,7 +163,7 @@ public class BGSStudent {
     }
 
     public void block(BGSStudent other) {
-        // Attention: No need to delete backup msgs from 'other'
+        // Attention: No need to delete backup msgs
 
         // Add other to blockedStudent
         this.blockedStudents.add(other);
