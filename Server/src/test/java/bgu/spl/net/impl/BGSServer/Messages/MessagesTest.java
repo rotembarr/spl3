@@ -16,17 +16,8 @@ import bgu.spl.net.impl.BGSServer.Filter;
 
 public class MessagesTest {
     
-    @Test
-    public void TestRegisterData() {
-        String src = "aaa" + '\0' + "bbb" + '\0' + "ccc" + '\0';
-        String[] parts = src.split("\0");
-        System.out.println(parts.length);
-        for (String part : parts) {
-            System.out.println(part);
-        }
-    }
 
-    @Test
+    // @Test
     public void TestSocket() {
         Thread serverThread = new Thread() {
             @Override
@@ -119,29 +110,6 @@ public class MessagesTest {
         FollowMessage msg = FollowMessage.decode(s);
         assertEquals(1, msg.getFollow());
         assertEquals("aaa", msg.getUsername());
-    }
-
-    @Test
-    public void testd() {
-        String[] arr = "@dsdsf asdasda dsvsdv sd @sf asd @sds dssdf @waas".split(" ");
-        for (int i = 0; i < arr.length; i++) {
-            if (arr[i].charAt(0) ==  '@') {
-                System.out.println(arr[i].substring(1));
-            }
-        }
-
-        String text = "as ds a Kaki dv@ dsvd !@# Kakidss sdsaa daspipi  sv ";
-        System.out.println(Filter.filter(text));
-        
-        short a = 49;
-        String s = new String(BGSMessage.shortToBytes(a), StandardCharsets.UTF_8);
-        System.out.println(s);
-        System.out.println(s.length());
-
-        String d = "11";
-        int k = Integer.parseInt(d);
-        System.out.println(k);
-
     }
 
     @Test

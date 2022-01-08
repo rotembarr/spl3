@@ -32,4 +32,8 @@ public class AckMessage extends BGSMessage{
         return BGSMessage.opcodeToString(this.opcode) + BGSMessage.opcodeToString(this.messageOpcode) + this.optional;
     }
 
+    public String toString() {
+        return this.opcode + " " + this.messageOpcode + " " + this.optional;
+    }
+
 } 

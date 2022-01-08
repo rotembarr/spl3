@@ -43,7 +43,12 @@ public class BGSProtocolTest {
         private Map<Integer, ConnectionHandler<BGSMessage>> idToHandlerMap = null;
         private Map<Integer, Queue<BGSMessage>> idToMsgListMap = null;
         private int connectionsCounter; 
-    
+        private boolean check = true;
+        
+        public void setCheck(boolean b) {
+            this.check = b;
+        }
+
         public ConnectionsTest() {
             this.idToHandlerMap = new HashMap<Integer, ConnectionHandler<BGSMessage>>();
             this.idToMsgListMap = new HashMap<Integer, Queue<BGSMessage>>();
@@ -63,7 +68,10 @@ public class BGSProtocolTest {
             
             Queue<BGSMessage> queue = this.idToMsgListMap.get(connectionId);
             BGSMessage other = queue.poll();
-            assertTrue(msg.equals(other));
+            if (this.check) {
+                if (!msg.equals(other))
+                    assertTrue("Compare failed \n" + msg + '\n' + other, false);
+            }
             return true;
         }
     
@@ -823,5 +831,80 @@ public class BGSProtocolTest {
         String date = "12-02-200";
         String[] arr = date.split("-");
         Period period = Period.between(LocalDate.now(), LocalDate.of(Integer.parseInt(arr[2]), Integer.parseInt(arr[1]), Integer.parseInt(arr[0])));
+    }
+
+    @Test
+    public void threadTest() {
+        BGSProtocol senderProtocol = this.createProtocol();
+        BGSProtocol followerProtocol = this.createProtocol();
+        Thread senderThread = null;
+        Thread followerThread = null;
+        
+        this.connections.setCheck(false);
+
+        RegisterMessage msg1 = new RegisterMessage("Sender", "pass", "11-1-2001");
+        senderProtocol.process(msg1);
+        
+        LoginMessage msg2 = new LoginMessage("Sender", "pass", (byte)1);
+        senderProtocol.process(msg2);
+
+        for (int i = 0; i < 200; i++) {
+            BGSProtocol protocol = this.createProtocol();
+            RegisterMessage reg = new RegisterMessage("Client"+i, "pass", "11-1-2001");
+            protocol.process(reg);
+            LoginMessage log = new LoginMessage("Client"+i, "pass", (byte)1);
+            protocol.process(log);
+            FollowMessage foll = new FollowMessage((byte)0, "Sender");
+            protocol.process(foll);
+        }
+        BGSStudent sender = this.usernamesToStudentMap.get("Sender");
+        assertEquals(200, sender.getNumOfFollowers());
+
+        RegisterMessage msg3 = new RegisterMessage("Follower", "pass", "11-1-2001");
+        followerProtocol.process(msg3);
+        
+        LoginMessage msg4 = new LoginMessage("Follower", "pass", (byte)1);
+        followerProtocol.process(msg4);
+
+        senderThread = new Thread() {
+            @Override
+            public void run() {
+                FollowMessage followMsg = new FollowMessage((byte)0, "Sender");
+                FollowMessage unfollowMsg = new FollowMessage((byte)1, "Sender");
+
+                // A lot of follow & unfollow
+                for (int i = 0; i < 100000; i++) {
+                    followerProtocol.process(followMsg);
+                    followerProtocol.process(unfollowMsg);
+                }
+                        
+            }
+        };
+
+        // Client2
+        followerThread = new Thread() {
+            @Override
+            public void run() {
+                PostMessage postMsg = new PostMessage("abcdefghijklmnopqrstuvwxyz");
+
+                // A lot of posts
+                for (int i = 0; i < 100000; i++) {
+                    senderProtocol.process(postMsg);
+                }
+            }
+        };
+
+        senderThread.start();
+        followerThread.start();
+
+        try {
+            senderThread.join();
+            followerThread.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println("threads test pass");
+        
+        this.connections.setCheck(true);
     }
 }

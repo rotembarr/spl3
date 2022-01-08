@@ -248,16 +248,16 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
     }
 
     private void handlePostMessage(PostMessage msg) {
-
+        
         // if no user loged in for this connection id.
         if (this.student == null) {
             this.sendError(BGSMessage.Opcode.POST);
             return;
         } 
-
+        
         // Create notification msg to send for all the destenation users.
         NotificationMessage notiMsg = new NotificationMessage((byte)1, this.student.getUsername(), msg.getContent());
-
+        
         // Lock the student in order no follow/unfollow or block to this user will happend during sending
         synchronized (this.student) {
 
