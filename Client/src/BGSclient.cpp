@@ -41,6 +41,9 @@ int main (int argc, char *argv[]) {
     //////// Finishing the program ////////
     // Wait for ack msg from logout.
     serverToClientThread.join();
-    std::cout << "main" << std::endl;
+
+    // Kill the thread that gets the commands.
+    pthread_cancel(clientToServerThread.native_handle());
+    clientToServerThread.join();
     return 0;
 }

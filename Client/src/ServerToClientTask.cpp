@@ -90,8 +90,6 @@ void ServerToClientTask::operator()() {
         if (shouldTerminate) {
             break;
         }
-        // if (ans.)
-    }
-        
+    }        
 }
 

@@ -13,7 +13,6 @@ private:
 public:   
     ServerToClientTask(ConnectionHandler& _connectionHandler);
     void operator()();
-
 }; 
 
 #endif
