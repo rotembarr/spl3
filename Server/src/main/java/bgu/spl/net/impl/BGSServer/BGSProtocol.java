@@ -3,9 +3,11 @@ package bgu.spl.net.impl.BGSServer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import bgu.spl.net.api.bidi.BidiMessagingProtocol;
 import bgu.spl.net.api.bidi.Connections;
@@ -148,7 +150,7 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
         // Note: no need to sync this function because we are loggin out.
         //       There is no denage of someone foolow or block this.student while executing this function.
         //       The denage here is we will logout but someone will send this CID a msg after we will send our ack for logout.    
-        //       The solution for this problem is simple - 
+        //       The solution for this problem is simple - connections.sendAndDisconnect
 
         // if no user register to this connection id send error.
         if (this.student == null) {
@@ -162,8 +164,6 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
         
         // After this ack sent, the client will close the connection, and this protocol will die.
         this.sendAck(BGSMessage.Opcode.LOGOUT, "");
-        
-        // No need to synchronize connections because this thread is the only thread that allowed to disconnet this CID.
         this.connections.disconnect(this.connectionId);
     }
 
@@ -271,16 +271,17 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
                 }
             }
 
-            // Search directed users and send them also the post.
-            String[] contentInWords = msg.getContent().split(" ");
-            for (int i = 0; i < contentInWords.length; i++) {
-    
+            // Search directed users and send them also the post (remove duplications).
+            Set<String> contentInWords = new HashSet<String>(Arrays.asList(msg.getContent().split(" ")));
+            for (Iterator<String> iter = contentInWords.iterator(); iter.hasNext(); ) {
+                String word = iter.next();
+
                 // Taged person
-                if (contentInWords[i].charAt(0) ==  '@') {
-                    BGSStudent directedStudent = this.usernamesToStudentMap.get(contentInWords[i].substring(1));
+                if (word.charAt(0) ==  '@') {
+                    BGSStudent directedStudent = this.usernamesToStudentMap.get(word.substring(1));
     
                     // if direct register and isn't blocking
-                    if (directedStudent != null && !this.student.isBlocking(directedStudent) && !directedStudent.isBlocking(this.student)) {
+                    if (directedStudent != null && this.student != directedStudent && !this.student.isBlocking(directedStudent) && !directedStudent.isBlocking(this.student)) {
     
                         // And if we are not already sent him this post.
                         if (!this.student.isFollower(directedStudent)) {

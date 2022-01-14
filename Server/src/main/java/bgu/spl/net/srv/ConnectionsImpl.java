@@ -25,8 +25,16 @@ public class ConnectionsImpl<T> implements Connections<T>{
             return false;
         }
 
-        handler.send(msg);
-        return true;
+        synchronized(handler) {
+
+            // Check if disconnect doesnt happend.
+            if (!this.idToHandlerMap.containsValue(handler)) {
+                return false;
+            }
+
+            handler.send(msg);
+            return true;
+        }
     }
 
     public void broadcast(T msg) {
@@ -55,4 +63,27 @@ public class ConnectionsImpl<T> implements Connections<T>{
     public void disconnect(int connectionId) {
         this.idToHandlerMap.remove(connectionId);
     }    
+
+    // public boolean sendAndDisconnect(int connectionId, T msg) {
+    //     ConnectionHandler<T> handler = idToHandlerMap.get(connectionId);
+        
+    //     if (handler == null) {
+    //         return false;
+    //     }
+
+    //     synchronized(handler) {
+
+    //         // Check if disconnect doesnt happend.
+    //         if (!this.idToHandlerMap.containsValue(handler)) {
+    //             return false;
+    //         }
+
+    //         handler.send(msg);
+
+    //         // This is the additional!!!
+    //         this.disconnect(connectionId);
+
+    //         return true;
+    //     }
+    // }
 }

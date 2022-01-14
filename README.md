@@ -33,6 +33,9 @@ Example of stage 3:
 or
     mvn exec:java -Dexec.mainClass="bgu.spl.net.impl.BGSServer.ReactorMain" -Dexec.args="'9999' '4'"
 
+#### Filter
+Filter with all the words needes to be filtered located in: ./Server/src/main/java/bgu/spl/net/impl/BGSServer/Filter.java 
+
 ### Attention
 1. Server nust start running before client
 2. The ip address givven to the client has to be the ip address the server running on.
