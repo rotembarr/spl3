@@ -108,6 +108,12 @@ public class BGSProtocol implements BidiMessagingProtocol<BGSMessage> {
             return;
         }
 
+        // Student already loged in.
+        if (this.student != null) {
+            this.sendError(BGSMessage.Opcode.LOGIN);
+            return;
+        }
+
         // This code has to be in synchronized in order not to logged in twice the same student.
         synchronized (mapedStudent) {
 
